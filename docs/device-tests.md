@@ -60,28 +60,25 @@ Skim `docs/lost-device.md`, `docs/rollback.md`, `docs/restore.md` once. Tell me 
 ## E. Before putting real data in a Vault app
 Charter: build-then-secure. Real sensitive data goes in only after Claude runs the security checklist and you see it pass. The checklist is: the vault test and drill pass on both devices; Check the Vault passes; the passphrase is written down in two places; the lost-device plan has been read; a backup less than a week old exists in **Grimoire Backups**.
 
-## F. Phase 2: Fitness (one time, then the short version after each Fitness release)
-Phase 2 is done when F1 to F4 pass on **both** devices and the Fitness data matches old Shrexy's. Nothing here needs Claude to see your data: you only compare screens yourself. **Do not paste your Apps Script URL or key into a chat.**
+## F. Fitness (Phase 2 and 2b)
+Phase 2b is done when F1 to F4 pass on **both** devices with only Grimoire's own address and key on them. Nothing here needs Claude to see your data: you compare screens yourself. **Do not paste your script address or key into a chat.**
 
-### F1. First-time setup (each device)
-1. Open **old Shrexy** (its home-screen icon). Tap the **sync icon** at the top right. You should see "Up to date". The sync icon should not be gold. If it is gold, tap it again until it is not.
-2. Open **Grimoire**. If an **Update available** banner shows, tap **Update now**. At the bottom of the home screen, the **Build** line should say 0.5.0.
-3. Tap the **Fitness** tile. You should see "Fitness" at the top, and below it a thin row with the sync, phone or monitor, and gear icons.
-4. Tap the **gear** in that thin row (not any other gear). A Settings panel opens.
-5. Go to old Shrexy: tap its **gear**. Tap in the **Apps Script web app URL** box, **Select All**, **Copy**. Close the panel with the X without changing anything.
-6. Back in Grimoire's Fitness Settings, tap in the same box, **Paste**.
-7. Repeat steps 5 and 6 for the **key** box.
-8. Tap **Save**. You should see the panel close and your history load within a few seconds. If you see "Couldn't reach the sheet" or "bad key", repeat 5 to 7 and check no extra spaces were pasted.
+### F1. Connection (each device, once)
+1. Open **Grimoire**. If an **Update available** banner shows, tap **Update now**. At the bottom of the home screen, **Build** should say 0.6.0.
+2. Tap the **gear** on the home screen, then find **Connection to your Sheet**. Your Grimoire script address and key should already be there (you entered them in Phase 1). Tap **Save and test**. You should see "Connected. Backend version 0.4.0."
+3. If it says 0.3.0, the Apps Script update has not been deployed yet: do the backend update first.
+4. Tap the back arrow, then the **Fitness** tile. Fitness's own **gear** should have no address or key boxes, just a note pointing to Grimoire's Connection.
 
 ### F2. Data matches (each device)
-1. In Fitness, look at today's screen and the **Month** view. Open old Shrexy next to it and compare the same month. The colored status bars, weights and notes should match.
+1. In Fitness, look at today's screen and the **Month** view. Open old Shrexy and compare the same month. The colored status bars, weights, run times (like 32:15) and notes should match.
 2. On the tablet: the **Progress** slide's weight line should match old Shrexy's.
 
 ### F3. Entering data works (phone)
-1. In Fitness, tap the **phone icon** if you are not on the entry screen. Type a test weight in **body weight**, tap **Save**. You should see **Saved ✓**.
-2. Open **old Shrexy**, tap its sync icon. Today's weight should show what you typed. Fix or delete the test weight afterwards in either app.
-3. In Fitness, type a different weight, then immediately tap the **back arrow** (top left). Reopen Fitness and tap its sync icon. You should see your weight kept, with no duplicate day in old Shrexy.
+1. In Fitness, on the entry screen type a test weight in **body weight** and tap **Save**. You should see **Saved ✓**.
+2. Open **old Shrexy**, tap its sync icon. Today's weight should show what you typed. Fix or delete the test weight afterwards.
+3. In Fitness, type a different weight, then immediately tap the **back arrow**. Reopen Fitness and tap its sync icon. Your weight should be kept, with no duplicate day in old Shrexy.
+4. Enter a run with time **8:45** and distance 1, Save, tap sync. Reopen it: the time should still read 8:45 (not 8:45 AM).
 
 ### F4. It stops when you leave (tablet)
 1. Open Fitness. The screen should stay awake and the slides should rotate.
-2. Tap the back arrow to Home and leave it for a few minutes. The screen should dim and lock as normal (Fitness no longer holds it awake).
+2. Tap the back arrow to Home and leave it for a few minutes. The screen should dim and lock as normal.

@@ -2,7 +2,7 @@
 // Everything here is prefixed grim / GRIM_ so it cannot collide with the old Shrexy script in the same project.
 // The key lives in Script Properties (GRIMOIRE_KEY), never in this file, and arrives in the request body.
 
-const GRIM_VERSION = "0.3.0";
+const GRIM_VERSION = "0.4.0";
 
 // One line per app. Add a new app = add its handler file + one line here, then deploy a new version.
 const GRIM_HANDLERS = {
@@ -35,6 +35,9 @@ function doPost(e) {
     if (body.action === "filedelete") return grimWithLock_(function () { return grimOut_(grimFileDelete_(body)); });
     if (body.action === "backup") return grimWithLock_(function () { return grimOut_(grimBackupNow_()); });
     if (body.action === "usage") return grimOut_(grimUsage_());
+    // Fitness (Phase 2b): its existing tabs, through Grimoire's one URL and key. See Grim_App_fitness.gs.
+    if (body.action === "fitness_getAll") return grimWithLock_(function () { return grimOut_(grimFitGetAll_()); });
+    if (body.action === "fitness_logBatch") return grimWithLock_(function () { return grimOut_(grimFitBatch_(body)); });
     return grimOut_({ ok: false, error: "bad_request" });
   } catch (err) {
     console.error("grim error: " + (err && err.message)); // message only, never the request body

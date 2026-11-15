@@ -1,6 +1,6 @@
 # Grimoire Charter
 
-**Status: v1.3, updated 2026-11-15 (v1.0 approved 2026-11-09). Phase 0 (planning) and Phase 1 (shell + core) are complete.** Every chat in this project follows this document. If a request conflicts with it, say so before proceeding. Changes to this charter happen only with Isaac's OK.
+**Status: v1.4, updated 2026-11-15 (v1.0 approved 2026-11-09). Phase 0 (planning) and Phase 1 (shell + core) are complete. Phase 2 (Fitness nested) is built; Phase 2b (Fitness onto Grimoire's one connection) is next.** Every chat in this project follows this document. If a request conflicts with it, say so before proceeding. Changes to this charter happen only with Isaac's OK.
 
 ---
 
@@ -55,7 +55,7 @@ A personal "one stop shop" PWA (installable website) that opens to a home screen
 | Code | New GitHub repo `grimoire` (same account) on GitHub Pages: `gandalfthedeveloper.github.io/grimoire`. Built by GitHub Actions on push to `main`. Local copy: `C:\Users\Brunn\Downloads\grimoire`. |
 | Old Shrexy | Repo and site stay untouched as a fallback. **Frozen** once Grimoire's build starts (emergencies only). Fixes happen in Grimoire's Fitness. Retire it after Fitness runs reliably on both devices for about 2 weeks. |
 | Data | Same Google Sheet. New apps get new tabs. Existing Shrexy tabs and columns are never renamed or removed. Before the first Apps Script change: File → Make a copy of the Shrexy Sheet. |
-| Backend | Same Apps Script project, **new deployment** with its own URL (old URL keeps running old code). One router, one handler file per app. |
+| Backend | Same Apps Script project, **new deployment** with its own URL (old URL keeps running old code). One router, one handler file per app. **One URL and one key for all of Grimoire: no app ever has its own script address or key.** Fitness is served by `Grim_App_fitness.gs`, which speaks Fitness's existing actions on the existing tabs (see Phase 2b). The old Shrexy deployment is retired in Phase 3. |
 | Key | New long random key for Grimoire, stored in Script Properties (not in code), sent in the request body (never the URL). |
 | Icons | New Grimoire home-screen icon on both devices. Old Shrexy icon stays until retired. Before switching: sync to zero pending, then enter URL and key once. |
 | Tech | React 18 + Vite + `lucide-react`. No unused dependencies. Code is split into small files. |
@@ -79,7 +79,7 @@ grimoire/
 
 ## 4. Engineering rules: do not carry Shrexy's problems forward
 
-Fitness gets these rules once nested, but the move itself makes only minimal changes (see Phase 2). Shrexy's known issues go on the "fix later" list (section 8), not fixed during nesting.
+Fitness gets these rules once nested, but the move itself makes only minimal changes (see Phase 2). Shrexy's known issues go on the "fix later" list (section 8), not fixed during nesting. Phase 2b fixes one of them on the way (the key moves from the URL into the request body, and is no longer stored inside Fitness).
 
 | Shrexy problem | Grimoire rule |
 |---|---|
@@ -159,7 +159,8 @@ Supported from the start. They live in a "Grimoire Files" folder in Isaac's Driv
 | 0 | Planning, charter | Isaac approves this charter |
 | 1 | Shell + core (sync, storage, vault, files, diagnostics, home screen, service worker), fake data only. Grimoire's own look decided here. Includes new repo, Pages, Apps Script deployment and key, and the Sheet copy, all walked through click by click | Passes tests on iPhone and tablet, recovery drill passes |
 | 2 | Fitness nested with minimal changes (prefix storage, start/stop timers on mount, full-height container, header becomes sub-header). Runs alongside old Shrexy | Both devices match old Shrexy's data |
-| 3 | Switch devices to Grimoire, freeze then retire old Shrexy after about 2 weeks | Isaac says so |
+| 2b | Fitness onto Grimoire's one connection. New Fitness handler in the Grimoire script (actions `fitness_getAll` and `fitness_logBatch` on the **existing** tabs, with the date/time protections, changed-rows-only writes, script lock). Fitness reads the URL and key from Grimoire's Connection setting; its own address and key boxes are removed. Tabs and columns are untouched (additive-only). Apps Script updated first, then the app | A device with only Grimoire's URL and key shows Fitness's data and saves reach the Sheet, on both devices, and old Shrexy's data still matches |
+| 3 | Switch devices to Grimoire, freeze then retire old Shrexy (the site and the old script deployment with its key) after about 2 weeks | Isaac says so |
 | 4+ | New apps one at a time, in the order Isaac chooses | Per app |
 
 **"Fix later" list for Fitness (not during nesting):** plan edits (`planOverrides`) sync across devices; pending-note overlay; incremental sync; plan data in the Sheet; split `WorkoutTracker.jsx`; remove unused `recharts`; remove stale nested `shrexy-tracker/` folder; confirm cycle-anchor stays hardcoded.
@@ -181,6 +182,7 @@ Supported from the start. They live in a "Grimoire Files" folder in Isaac's Driv
 1. ID and name. 2. Devices (phone, tablet, both). 3. Vault now, later, or never. 4. Dated items for a calendar feed? 5. Sheet tabs and columns (specs only, never data). 6. Cross-app connections needed. 7. Files/photos needed? 8. Own theme. 9. Create `docs/apps/<app>.md`. 10. Add to the index above.
 
 ## 11. Decision log
+- 2026-11-15 (v1.4): Phase 2 shipped as app 0.5.0 (Fitness nested, still on the old Shrexy URL and key). Isaac asked for one URL and one key for everything and no per-app keys. Added Phase 2b (above) and the rule "no app has its own script address or key" to section 3. Retiring old Shrexy in Phase 3 now includes its script deployment and key. Phase 2b does not move Fitness onto the shared record format (IDs, UpdatedAt, incremental sync); that stays on the fix-later list. **One deliberate exception to section 4:** the Fitness handler reads and matches Fitness's own legacy columns (Date, ExerciseName, SetNumber), because the old tabs have no IDs. Until Fitness moves to the shared record format, it cannot be put in the Vault.
 - 2026-11-15 (v1.3): Phase 1 complete. Round 4 shipped app 0.4.0 (re-key, Check the Vault, recovery drill, photo test) and the written procedures `docs/lost-device.md`, `docs/rollback.md`, `docs/restore.md` and the standard test checklist `docs/device-tests.md`. Isaac confirmed the photo test, recovery drill and practice re-key passed on iPhone and tablet. Phase 2 (nest Fitness) is next.
 - 2026-11-15 (v1.2): Isaac's computer has no Node.js or npm, so no terminal block may contain `npm`, `node` or any build or test command. Builds and tests run in Claude's environment before each zip is sent, GitHub Actions builds on push, and Isaac confirms a green check on the Actions tab. The standard push block is `cd`; `git status`; `git add .`; `git commit`; `git push`. Replaces the earlier "stop on build failure" pattern, which could never run on his machine.
 - 2026-11-15: Added a "Read this first" block at the top: click-by-click is defined concretely and applies from the first reply of every chat; terminal steps are always one combined copy-paste block (starts with `cd` to the repo, `;` chaining, destructive or check-first steps kept separate). Repo path recorded. Section 10 numbering fixed.

@@ -1,4 +1,4 @@
-# Fitness (Super Shrexy Tracker): app spec
+# Fitness (Super Shrexy Tracker): app spec (Phase 2 and 2b)
 
 Source of truth for how Fitness lives inside Grimoire. The full feature history, data model and gotchas of the original tracker are in the project's Handoff doc (`Grimoire-Handoff-Super-Shrexy-Tracker-Calendar.md`). This file covers what changed when it moved in (Phase 2, app 0.5.0).
 
@@ -24,12 +24,19 @@ Source of truth for how Fitness lives inside Grimoire. The full feature history,
 ## Added beyond the four items, and why
 - **Last-chance send.** When Fitness is hidden or closed, anything still in the queue is sent once with a `keepalive` request (charter "Saving" rule 3). The queue is only cleared by a confirmed normal sync, never by this send. Writes are upserts, so a repeat is harmless (tested: one row, not two). Reason: nesting makes it easy to leave the app mid-edit, and old Shrexy never had to cope with that.
 
-## Backend (unchanged on purpose)
-Fitness still talks to the **old Shrexy Apps Script URL and key**, entered once in Fitness's own gear (Settings) on each device. This is what keeps "both devices match old Shrexy's data" true, since both apps read and write the same Sheet through the same script. Grimoire's own sync (new URL, new key, `Grim_Router`) does not carry Fitness data yet. No Apps Script change this round.
+## Backend (Phase 2b, app 0.6.0 and backend 0.4.0)
+Fitness has **no script address or key of its own**. It reads Grimoire's one connection (home screen, gear, Connection) through `sync.call` in `core/`, and the Grimoire script serves it with two actions in `apps-script/Grim_App_fitness.gs`:
+- `fitness_getAll`: returns `dailyLog`, `exerciseLog`, `runLog`, `calendarNotes` as arrays of row objects (the shape old Shrexy returned).
+- `fitness_logBatch`: `items = [{ action, data }]` with `logDaily`, `logExercise`, `logRun`, `logNote` (an empty Note deletes that day's note). Up to 500 items; one bad item fails alone.
+The handler works on the **existing tabs** (`DailyLog`, `ExerciseLog`, `RunLog`, `CalendarNotes`): never renamed or removed, missing columns added, columns it doesn't know are left alone. It keeps the Shrexy protections (RunLog `Time` and `Pace` forced to plain text before writing, converted dates and 1899-anchored times repaired on the way out), writes only the rows that changed, and runs under the script lock. Both actions need the Grimoire key (Script Properties), sent in the request body.
+Fitness no longer stores a script address or key: any left in `grimoire:fitness:settings` by app 0.5.0 are deleted the first time 0.6.0 opens.
+The old Shrexy deployment and old Shrexy site are untouched and still work on the same tabs, until Phase 3 retires them.
 
 ## Decisions and reasons
 - Minimal changes only. Shrexy's known problems (key in the URL, whole-tab rewrites, full download every refresh, last-write-wins, unsynced notes vanishing) are deliberately **not** fixed here; they are on the Fix later list below.
-- URL and key are typed or pasted once per device (charter: "enter URL and key once"). No automatic import from the old site's storage, even though both sites share one browser origin: an automatic copy of the old queue could resend stale edits over newer ones.
+- No automatic import from the old site's storage, even though both sites share one browser origin: an automatic copy of the old queue could resend stale edits over newer ones.
+- One URL and one key for all of Grimoire (Isaac's rule, charter section 3). Fitness never asks for its own.
+- The Fitness handler is the one place the script reads and matches app columns (Date, ExerciseName, SetNumber), because the old tabs have no IDs. Consequence: Fitness cannot go in the Vault until it moves to the shared record format.
 - The Grimoire status dot does **not** count Fitness's own queue yet (it reads Grimoire's sync). Fitness's own sync icon turns gold when items wait.
 
 ## Rejected ideas
@@ -37,12 +44,14 @@ Fitness still talks to the **old Shrexy Apps Script URL and key**, entered once 
 - Aborting an in-flight save when you leave the app: it is left to finish; the queue holds anything unconfirmed.
 
 ## Gotchas
-- Old Shrexy and Fitness each keep their own queue. **Sync the old app to zero pending before the first time you use Fitness for real**, or edits waiting in the old app stay there.
+- Old Shrexy and Fitness each keep their own queue. Sync the old app to zero pending before relying on Fitness, or edits waiting in the old app stay there.
+- **Deploy order for 0.6.0:** update the Apps Script (backend 0.4.0) first, then push the app. An app 0.6.0 talking to backend 0.3.0 shows "The backend rejected the request" and keeps edits queued.
+- If Fitness shows "The key was rejected" or "Not connected yet", the problem is Grimoire's Connection setting on that device, not Fitness.
 - Same Sheet, two apps: until Phase 3 ends, use one app per day for entering data, to avoid last-write-wins surprises.
 - The same-origin note above: old keys (`settings`, `queue`, ...) sit in the same browser storage as Grimoire's. Grimoire never touches them.
 
 ## Fix later (from the charter, unchanged)
-Plan edits (`planOverrides`) sync across devices; pending-note overlay; incremental sync; plan data in the Sheet; split `WorkoutTracker.jsx`; remove unused `recharts` (not in Grimoire's `package.json`, so already gone here); remove stale nested `shrexy-tracker/` folder (old repo only); confirm cycle anchor stays hardcoded. Also now: show Fitness's pending count in Grimoire's status dot; move Fitness onto the shared data layer and Grimoire's backend (Phase 3 and later); move the palette into theme tokens.
+Plan edits (`planOverrides`) sync across devices; pending-note overlay; incremental sync; plan data in the Sheet; split `WorkoutTracker.jsx`; remove unused `recharts` (not in Grimoire's `package.json`, so already gone here); remove stale nested `shrexy-tracker/` folder (old repo only); confirm cycle anchor stays hardcoded. Also now: show Fitness's pending count in Grimoire's status dot; move Fitness onto the shared record format (IDs, UpdatedAt, incremental sync, Vault-able); move the palette into theme tokens.
 
 ## Open questions
-- When to start Phase 3 (switch both devices, freeze old Shrexy): after both devices pass the Phase 2 checks and run side by side without differences.
+- When to start Phase 3 (switch both devices, freeze old Shrexy, retire the old script deployment and key): after Phase 2b's checks pass on both devices and they run side by side without differences for about 2 weeks.

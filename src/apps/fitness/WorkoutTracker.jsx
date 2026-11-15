@@ -1,6 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, useId } from "react";
 import { Settings, ChevronLeft, ChevronRight, Smartphone, Monitor, RefreshCw, Plus, Trash2, X } from "lucide-react";
 import { getItem, setItem } from "../../core/storage.js";
+import { sync } from "../../core/index.js";
+import { loadSyncConfig } from "../../core/syncConfig.js";
+
+// Phase 2b: Fitness has no script address or key of its own. It uses Grimoire's one connection
+// (Settings on the home screen) and the Fitness actions of Grimoire's backend, which read and write
+// the same Sheet tabs old Shrexy always used.
+const connected = () => { const c = loadSyncConfig(); return !!(c.url && c.key); }; 
 
 const PLAN_DAYS = [
   { Week: 1, DayOfWeek: "Monday", Type: "Lift", MuscleGroups: "Back, Biceps, Core", Notes: "" },
@@ -1279,8 +1286,6 @@ function ProgressSlide({ dailyLog, exerciseLog, runLog, anchorDate, planOverride
 const SLIDE_DEFS = [{ id: "today", label: "Today" }, { id: "week", label: "Week" }, { id: "month", label: "Month" }, { id: "progress", label: "Progress" }];
 
 function SettingsModal({ settings, onSave, onClose, onLoadDemo, onOpenPlanEditor }) {
-  const [url, setUrl] = useState(settings.apiUrl);
-  const [key, setKey] = useState(settings.apiKey);
   const [slides, setSlides] = useState(settings.slides);
   const [seconds, setSeconds] = useState(settings.slideSeconds);
   const [enabled, setEnabled] = useState(settings.slideshowEnabled);
@@ -1297,10 +1302,7 @@ function SettingsModal({ settings, onSave, onClose, onLoadDemo, onOpenPlanEditor
           <div style={{ fontWeight: 800, fontSize: 18 }}>Settings</div>
           <X size={20} style={{ cursor: "pointer", color: SUB }} onClick={onClose} />
         </div>
-        <label style={{ fontSize: 12, color: SUB }}>Apps Script web app URL (ends in /exec)</label>
-        <input value={url} onChange={(e) => setUrl(e.target.value)} style={{ padding: 10, borderRadius: 8, background: BG, border: `1px solid ${LINE}`, color: INK }} />
-        <label style={{ fontSize: 12, color: SUB }}>Secret key</label>
-        <input value={key} onChange={(e) => setKey(e.target.value)} style={{ padding: 10, borderRadius: 8, background: BG, border: `1px solid ${LINE}`, color: INK }} />
+        <div style={{ fontSize: 12, color: SUB, lineHeight: 1.5 }} data-testid="fitness-conn-note">Your Sheet connection (script address and key) is set once for all of Grimoire: home screen, gear, Connection.</div>
         <div style={{ borderTop: `1px solid ${LINE}`, marginTop: 6, paddingTop: 12 }}>
           <label style={{ fontSize: 12, color: SUB, display: "block", marginBottom: 8 }}>Slides to display</label>
           {SLIDE_DEFS.map((s) => (
@@ -1335,7 +1337,7 @@ function SettingsModal({ settings, onSave, onClose, onLoadDemo, onOpenPlanEditor
             style={{ width: "100%", padding: 10, borderRadius: 8, background: BG, border: `1px solid ${LINE}`, color: INK, marginTop: 4 }} />
         </div>
 
-        <button onClick={() => onSave({ apiUrl: url, apiKey: key, anchorDate: CYCLE_ANCHOR, slides: slides.length ? slides : ["today"], slideSeconds: seconds || 150, slideshowEnabled: enabled, refreshMinutes: refreshMin || 3, abCycleSeconds: abSecs || 15, weightWindowDays: Math.min(60, Math.max(5, weightWin || 21)) })}
+        <button onClick={() => onSave({ anchorDate: CYCLE_ANCHOR, slides: slides.length ? slides : ["today"], slideSeconds: seconds || 150, slideshowEnabled: enabled, refreshMinutes: refreshMin || 3, abCycleSeconds: abSecs || 15, weightWindowDays: Math.min(60, Math.max(5, weightWin || 21)) })}
           style={{ padding: 12, borderRadius: 10, border: "none", background: ACCENT, color: "#06211D", fontWeight: 700, marginTop: 8 }}>Save</button>
 
         <div style={{ borderTop: `1px solid ${LINE}`, marginTop: 4, paddingTop: 12 }}>
@@ -1861,7 +1863,7 @@ function LogEntryView({ date, setDate, anchorDate, dailyLog, exerciseLog, runLog
 }
 
 export default function WorkoutTracker() {
-  const [settings, setSettings] = useState({ apiUrl: "", apiKey: "", anchorDate: CYCLE_ANCHOR, slides: ["today", "week", "month", "progress"], slideSeconds: 150, slideshowEnabled: true, abCycleSeconds: 15, weightWindowDays: 21 });
+  const [settings, setSettings] = useState({ anchorDate: CYCLE_ANCHOR, slides: ["today", "week", "month", "progress"], slideSeconds: 150, slideshowEnabled: true, abCycleSeconds: 15, weightWindowDays: 21 });
   const [showSettings, setShowSettings] = useState(false);
   const [mode, setMode] = useState(typeof window !== "undefined" && window.innerWidth < 700 ? "entry" : "display");
   const [slide, setSlide] = useState(0);
@@ -1873,7 +1875,6 @@ export default function WorkoutTracker() {
   const queueRef = useRef([]);
   useEffect(() => { queueRef.current = queue; }, [queue]);
   const mountedRef = useRef(true);
-  const settingsRef = useRef(null);
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState("");
   const [calendarNotes, setCalendarNotes] = useState({});
@@ -1921,7 +1922,12 @@ export default function WorkoutTracker() {
   useEffect(() => {
     (async () => {
       const s = await storeGet("settings", null);
-      if (s) setSettings((prev) => ({ ...prev, ...s, anchorDate: CYCLE_ANCHOR }));
+      if (s) {
+        // Phase 2b: Fitness no longer keeps its own script address or key. Remove any left on this device.
+        const { apiUrl: _u, apiKey: _k, ...rest } = s;
+        if ("apiUrl" in s || "apiKey" in s) storeSet("settings", rest);
+        setSettings((prev) => ({ ...prev, ...rest, anchorDate: CYCLE_ANCHOR }));
+      }
       setDailyLog(await storeGet("dailyLog", []));
       setExerciseLog(await storeGet("exerciseLog", []));
       setRunLog(await storeGet("runLog", []));
@@ -1972,14 +1978,10 @@ export default function WorkoutTracker() {
     setShowSettings(false);
   };
 
-  const fetchAll = useCallback(async (s) => {
-    if (!s.apiUrl || !s.apiKey || !mountedRef.current) return;
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 30000);
+  const fetchAll = useCallback(async () => {
+    if (!mountedRef.current || !connected()) return;
     try {
-      const res = await fetch(`${s.apiUrl}?key=${encodeURIComponent(s.apiKey)}&action=getAll`, { signal: controller.signal });
-      const data = await res.json();
-      if (data.error) { setSyncMsg(`Fetch error: ${data.error}`); return; }
+      const data = await sync.call({ action: "fitness_getAll" });
       setDailyLog(data.dailyLog || []); setExerciseLog(data.exerciseLog || []); setRunLog(data.runLog || []);
       storeSet("dailyLog", data.dailyLog || []); storeSet("exerciseLog", data.exerciseLog || []); storeSet("runLog", data.runLog || []);
       if (data.calendarNotes) {
@@ -1988,11 +1990,11 @@ export default function WorkoutTracker() {
         setCalendarNotes(notesObj);
         storeSet("calendarNotes", notesObj);
       }
-    } catch (err) { setSyncMsg(`Couldn't reach the sheet (${err.message})`); } finally { clearTimeout(timer); }
+    } catch (err) { setSyncMsg(`Couldn't reach the sheet (${err.message})`); }
   }, []);
 
-  useEffect(() => { if (settings.apiUrl) fetchAll(settings); }, [settings.apiUrl]);
-  useEffect(() => { const t = setInterval(() => fetchAll(settings), (settings.refreshMinutes || 3) * 60 * 1000); return () => clearInterval(t); }, [settings, fetchAll]);
+  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => { const t = setInterval(() => fetchAll(), (settings.refreshMinutes || 3) * 60 * 1000); return () => clearInterval(t); }, [settings, fetchAll]);
 
   const activeSlides = SLIDE_DEFS.filter((s) => settings.slides.includes(s.id));
   useEffect(() => { if (slide >= activeSlides.length) setSlide(0); }, [activeSlides.length]);
@@ -2026,23 +2028,7 @@ export default function WorkoutTracker() {
   // one round trip's worth of progress instead of failing partway through a
   // long sequential chain. A 20s timeout keeps a hung request from leaving the
   // UI stuck on "Saving…" forever.
-  const postBatch = async (items) => {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 30000);
-    try {
-      const res = await fetch(settings.apiUrl, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ key: settings.apiKey, action: "logBatch", items }),
-        signal: controller.signal,
-      });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      return data;
-    } finally {
-      clearTimeout(timer);
-    }
-  };
+  const postBatch = async (items) => sync.call({ action: "fitness_logBatch", items });
 
   // Single entry point for both "save this entry" and "manual refresh": merges any
   // new items into the queue (replacing same-key items so nothing stacks — and
@@ -2073,13 +2059,13 @@ export default function WorkoutTracker() {
     queueRef.current = merged;
     if (itemsToMerge) { setQueue(merged); storeSet("queue", merged); }
 
-    if (!settings.apiUrl) {
+    if (!connected()) {
       setSyncing(false);
-      setSyncMsg(itemsToMerge ? "Saved locally — add your Apps Script URL in Settings to sync" : "Set your Apps Script URL and key in Settings first.");
+      setSyncMsg(itemsToMerge ? "Saved locally. Add your script address and key in Grimoire's Settings to sync" : "Add your script address and key in Grimoire's Settings first.");
       return { ok: 0, fail: merged.length };
     }
     if (merged.length === 0) {
-      await fetchAll(settings);
+      await fetchAll();
       setSyncing(false);
       setSyncMsg("Up to date");
       return { ok: 0, fail: 0 };
@@ -2091,7 +2077,7 @@ export default function WorkoutTracker() {
       const ok = merged.length - remaining.length;
       queueRef.current = remaining;
       setQueue(remaining); storeSet("queue", remaining);
-      await fetchAll(settings);
+      await fetchAll();
       setSyncing(false);
       setSyncMsg(remaining.length > 0 ? `Saved ${ok}, ${remaining.length} pending — will retry` : `Saved ${ok} item${ok === 1 ? "" : "s"}`);
       return { ok, fail: remaining.length };
@@ -2099,7 +2085,7 @@ export default function WorkoutTracker() {
       // Whole batch failed (offline, timeout, etc.) — everything stays queued,
       // already safely on disk from the merge above, nothing is lost.
       setSyncing(false);
-      setSyncMsg(`Couldn't reach the sheet — ${merged.length} pending, will retry`);
+      setSyncMsg(`Couldn't save (${err && err.message ? err.message : "no connection"}) — ${merged.length} pending, will retry`);
       return { ok: 0, fail: merged.length };
     }
   };
@@ -2107,15 +2093,14 @@ export default function WorkoutTracker() {
   // Charter saving rule 3: when the app is hidden or closed, send whatever is still queued with a
   // keepalive request. Writes are upserts, so sending again later is harmless. The queue is only
   // cleared by a confirmed normal sync, never here.
-  settingsRef.current = settings;
   useEffect(() => {
     mountedRef.current = true;
     const lastChance = () => {
-      const st = settingsRef.current;
+      const c = loadSyncConfig();
       const items = queueRef.current;
-      if (!st || !st.apiUrl || !st.apiKey || !items.length) return;
+      if (!c.url || !c.key || !items.length) return;
       try {
-        fetch(st.apiUrl, { method: "POST", keepalive: true, headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ key: st.apiKey, action: "logBatch", items }) }).catch(() => {});
+        fetch(c.url, { method: "POST", keepalive: true, headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ key: c.key, action: "fitness_logBatch", items }) }).catch(() => {});
       } catch { /* the queue is still on the device */ }
     };
     const onVis = () => { if (document.visibilityState === "hidden") lastChance(); };
@@ -2168,7 +2153,7 @@ export default function WorkoutTracker() {
       <div style={{ flex: "0 0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 16px", borderBottom: `1px solid ${LINE}` }}>
         <div style={{ fontSize: 11, color: SUB, flex: 1, minWidth: 0 }} data-testid="fitness-sync-msg">{syncMsg}</div>
         <div style={{ display: "flex", gap: 18, alignItems: "center" }}>
-          <RefreshCw size={30} className={syncing ? "spin" : ""} style={{ cursor: "pointer", color: queue.length ? GOLD : SUB, padding: 6 }} onClick={() => (settings.apiUrl ? pushQueue(null) : setShowSettings(true))} />
+          <RefreshCw size={30} className={syncing ? "spin" : ""} style={{ cursor: "pointer", color: queue.length ? GOLD : SUB, padding: 6 }} onClick={() => pushQueue(null)} />
           {mode === "display" ? <Smartphone size={30} style={{ cursor: "pointer", color: SUB, padding: 6 }} onClick={() => { setEditContext(null); setMode("entry"); }} /> : <Monitor size={30} style={{ cursor: "pointer", color: SUB, padding: 6 }} onClick={finishEdit} />}
           <Settings size={30} style={{ cursor: "pointer", color: SUB, padding: 6 }} onClick={() => setShowSettings(true)} />
         </div>
@@ -2193,7 +2178,7 @@ export default function WorkoutTracker() {
         </div>
       )}
 
-      {showSettings && <SettingsModal settings={settings} onClose={() => setShowSettings(false)} onSave={async (s) => { setSettings(s); await storeSet("settings", s); setShowSettings(false); fetchAll(s); }} onLoadDemo={onLoadDemo} onOpenPlanEditor={() => { setShowSettings(false); setShowPlanEditor(true); }} />}
+      {showSettings && <SettingsModal settings={settings} onClose={() => setShowSettings(false)} onSave={async (s) => { setSettings(s); await storeSet("settings", s); setShowSettings(false); fetchAll(); }} onLoadDemo={onLoadDemo} onOpenPlanEditor={() => { setShowSettings(false); setShowPlanEditor(true); }} />}
       {showPlanEditor && <PlanEditorModal planOverrides={planOverrides} onClose={() => setShowPlanEditor(false)} onSave={onSavePlanOverride} />}
     </div>
   );

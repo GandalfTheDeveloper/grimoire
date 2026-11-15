@@ -13,6 +13,17 @@
 | Start over for a lost passphrase | 0.3.2 | 0.3.0 |
 | Round 4: re-key, recovery drill, photo test, procedures | 0.4.0 | 0.3.0 |
 | Phase 2: Fitness nested | 0.5.0 | 0.3.0 |
+| Phase 2b: Fitness on Grimoire's one connection | 0.6.0 | 0.4.0 |
+
+## App 0.6.0 / Backend 0.4.0 — Phase 2b
+- **Fitness now uses Grimoire's one script address and key.** Its own address and key boxes are gone from Fitness's Settings, and any copy left on a device by 0.5.0 is deleted. Set the connection once in Grimoire (home screen, gear, Connection) and Fitness works on every device with that connection.
+- **Backend 0.4.0** adds `Grim_App_fitness.gs` and two router actions, `fitness_getAll` and `fitness_logBatch`, on the existing Fitness tabs (`DailyLog`, `ExerciseLog`, `RunLog`, `CalendarNotes`). Tabs and columns are untouched; missing columns are added; Time and Pace stay plain text; converted dates and times are repaired; only changed rows are written; script lock on every request. **Update the Apps Script first, then push the app.**
+- Fitness shows the real reason when a save fails (for example "The key was rejected") and keeps the edit queued.
+- Last-chance send now goes to Grimoire's address with Grimoire's key.
+- Old Shrexy and its script deployment are untouched and still work on the same tabs.
+- Tests: 19 backend tests for the Fitness actions (run from the real `.gs` files in the simulated Sheet, including converted dates and times, existing General-format tabs, hand-added columns, deletes, bad items, repeats, lock) and the Fitness screen tests now run against that real script. Mutation-checked.
+- Charter v1.4: Phase 2b added; rule "no app has its own script address or key"; Phase 3 also retires the old script deployment.
+- Docs: `docs/apps/fitness.md`, `docs/device-tests.md` section F rewritten.
 
 ## App 0.5.0 (backend unchanged at 0.3.0) — Phase 2
 - **Fitness (Super Shrexy Tracker) is now inside Grimoire.** Minimal changes only: on-device keys prefixed `grimoire:fitness:`, timers/wake lock/listeners stop when you leave, full-height inside Grimoire's frame, old title header became a sub-header (the full-screen button lives in Grimoire's top bar). Details: `docs/apps/fitness.md`.

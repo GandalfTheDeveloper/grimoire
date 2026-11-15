@@ -16,7 +16,7 @@ const first = (r) => r.items[0];
 describe("access", () => {
   it("answers GET with only the version", () => {
     const out = JSON.parse(b.run("doGet")({}).getContent());
-    expect(out).toEqual({ ok: true, app: "grimoire", version: "0.3.0" });
+    expect(out).toEqual({ ok: true, app: "grimoire", version: "0.4.0" });
   });
   it("rejects a wrong key and a missing key, and never touches the Sheet", () => {
     expect(b.post({ key: "nope", action: "ping" }).error).toBe("auth");
@@ -38,7 +38,7 @@ describe("access", () => {
   it("ping works and reports the version", () => {
     const r = b.post({ key: KEY, action: "ping" });
     expect(r.ok).toBe(true);
-    expect(r.version).toBe("0.3.0");
+    expect(r.version).toBe("0.4.0");
   });
 });
 

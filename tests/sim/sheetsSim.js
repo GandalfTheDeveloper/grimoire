@@ -9,7 +9,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), "../../apps-script");
-export const GS_FILES = ["Grim_Router.gs", "Grim_Core.gs", "Grim_Files.gs", "Grim_Backup.gs", "Grim_App_core.gs", "Grim_App_selftest.gs"];
+export const GS_FILES = ["Grim_Router.gs", "Grim_Core.gs", "Grim_Files.gs", "Grim_Backup.gs", "Grim_App_core.gs", "Grim_App_selftest.gs", "Grim_App_fitness.gs"];
 
 const EPOCH_1899 = Date.UTC(1899, 11, 30);
 
@@ -40,6 +40,13 @@ class Sheet {
   insertRowsAfter(_after, n) { this.maxRows += n; }
   insertColumnsAfter(_after, n) { this.maxCols += n; }
   setFrozenRows(n) { this.frozen = n; }
+  deleteRow(r) {
+    this.stats.rowsDeleted = (this.stats.rowsDeleted || 0) + 1;
+    const next = new Map(), nf = new Map();
+    for (const [k, v] of this.cells) { const [rr, cc] = k.split(",").map(Number); if (rr === r) continue; next.set(this.key(rr > r ? rr - 1 : rr, cc), v); }
+    for (const [k, v] of this.formats) { const [rr, cc] = k.split(",").map(Number); if (rr === r) continue; nf.set(this.key(rr > r ? rr - 1 : rr, cc), v); }
+    this.cells = next; this.formats = nf;
+  }
   getLastRow() { let m = 0; for (const k of this.cells.keys()) { const [r] = k.split(",").map(Number); if (this.cells.get(k) !== "") m = Math.max(m, r); } return m; }
   getLastColumn() { let m = 0; for (const k of this.cells.keys()) { const [, c] = k.split(",").map(Number); if (this.cells.get(k) !== "") m = Math.max(m, c); } return m; }
   getRange(r, c, nr = 1, nc = 1) {
