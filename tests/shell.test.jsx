@@ -238,3 +238,36 @@ describe("iPhone safe area", () => {
     expect(css).toMatch(/\.gr-top \{[^}]*env\(safe-area-inset-top\)/);
   });
 });
+
+describe("full screen", () => {
+  const setFs = (enabled, el = null) => { Object.defineProperty(document, "fullscreenEnabled", { value: enabled, configurable: true }); Object.defineProperty(document, "fullscreenElement", { value: el, configurable: true }); };
+  afterEach(() => { setFs(undefined, null); delete window.matchMedia; });
+  it("shows no button where the browser can't do full screen (iPhone)", () => {
+    setFs(false);
+    render(<App />);
+    expect(screen.queryByTestId("fullscreen")).toBeNull();
+  });
+  it("shows the button where it can, asks for full screen on tap, and flips when it changes", async () => {
+    setFs(true);
+    const req = vi.fn(() => Promise.resolve());
+    document.documentElement.requestFullscreen = req;
+    render(<App />);
+    fireEvent.click(screen.getByTestId("fullscreen"));
+    expect(req).toHaveBeenCalled();
+    expect(screen.getByTestId("fullscreen").getAttribute("aria-label")).toBe("Full screen");
+    setFs(true, document.documentElement);
+    act(() => { document.dispatchEvent(new Event("fullscreenchange")); });
+    expect(screen.getByTestId("fullscreen").getAttribute("aria-label")).toBe("Exit full screen");
+  });
+  it("hides the button when the installed app already launched full screen", () => {
+    setFs(true);
+    window.matchMedia = (q) => ({ matches: q.includes("fullscreen"), addEventListener() {}, removeEventListener() {} });
+    render(<App />);
+    expect(screen.queryByTestId("fullscreen")).toBeNull();
+  });
+  it("the manifest asks Android to launch full screen and falls back to standalone", async () => {
+    const m = JSON.parse((await import("node:fs")).readFileSync("public/manifest.webmanifest", "utf8"));
+    expect(m.display_override).toEqual(["fullscreen", "standalone"]);
+    expect(m.display).toBe("standalone");
+  });
+});

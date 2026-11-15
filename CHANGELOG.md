@@ -7,6 +7,10 @@
 | Round 2 first delivery | 0.2.0 | 0.2.0 |
 | Update banner fix | 0.2.1 | 0.2.0 |
 | Text fix (`=` and `'`) | 0.2.2 | 0.2.1 |
+| Full screen (tablet) | 0.2.3 | 0.2.1 |
+
+## App 0.2.3
+- Full screen: the manifest now asks Android to launch the installed app full screen (no clock, wifi or battery bar), falling back to the normal app window. A full screen toggle button (Shrexy's) appears in the top bar wherever the browser allows it, and hides on iPhone and when already launched full screen. Browsers only allow switching to full screen from a tap, so it cannot be turned on by itself at launch other than through the install setting.
 
 ## App 0.2.2 / Backend 0.2.1
 - App 0.2.2: no app behavior change. It exists so the app number moves forward when the repo is updated with the backend fix below (the app was already 0.2.1 from the banner fix).

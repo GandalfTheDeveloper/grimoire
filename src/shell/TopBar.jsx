@@ -1,4 +1,5 @@
-import { ArrowLeft, Settings as Gear } from "lucide-react";
+import { ArrowLeft, Maximize2, Minimize2, Settings as Gear } from "lucide-react";
+import { useFullscreen } from "../core/fullscreen.js";
 import { useSyncExternalStore } from "react";
 import { getSyncStatus, subscribeSync } from "../core/syncStatus.js";
 import { go } from "../core/useRoute.js";
@@ -20,6 +21,7 @@ export function StatusDot() {
 }
 
 export default function TopBar({ title, onBack, showSettings }) {
+  const fs = useFullscreen();
   return (
     <header className="gr-top" data-testid="topbar">
       {onBack && (
@@ -29,6 +31,11 @@ export default function TopBar({ title, onBack, showSettings }) {
       )}
       <div className="gr-title">{title}</div>
       <StatusDot />
+      {fs.supported && (
+        <button className="gr-iconbtn" aria-label={fs.on ? "Exit full screen" : "Full screen"} data-testid="fullscreen" onClick={fs.toggle}>
+          {fs.on ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
+        </button>
+      )}
       {showSettings && (
         <button className="gr-iconbtn" aria-label="Settings" data-testid="open-settings" onClick={() => go("/settings")}>
           <Gear size={20} />
