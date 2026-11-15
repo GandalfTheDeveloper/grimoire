@@ -25,7 +25,7 @@
 .gr-row select { background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font: inherit; font-size: 14px; }
 .gr-check { width: 22px; height: 22px; accent-color: #e6e7e9; }
 .gr-link { color: var(--dim); font-size: 12px; text-align: center; margin: 26px auto 0; display: block; padding: 8px; }
-.gr-banner { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; background: var(--card); border-bottom: 1px solid var(--line); font-size: 14px; }
+.gr-banner { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: calc(env(safe-area-inset-top) + 10px) 14px 10px; background: var(--card); border-bottom: 1px solid var(--line); font-size: 14px; }
 .gr-banner button { padding: 6px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); }
 .gr-kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; padding: 14px; font-size: 14px; }
 .gr-kv dt { color: var(--sub); } .gr-kv dd { margin: 0; text-align: right; word-break: break-word; }
@@ -40,3 +40,5 @@
 .gr-btn:disabled, .gr-iconbtn:disabled { opacity: .45; }
 .gr-btn:active { background: var(--card-hover) !important; }
 .gr-pass { color: var(--ok); } .gr-fail { color: var(--warn); }
+/* when the banner is showing it already clears the status bar, so the top bar under it does not add that gap twice */
+.gr-banner + .gr-top { padding-top: 10px; }

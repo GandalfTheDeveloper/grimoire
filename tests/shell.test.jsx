@@ -229,3 +229,12 @@ describe("diagnostics tools", () => {
     vi.unstubAllGlobals();
   });
 });
+
+describe("iPhone safe area", () => {
+  it("the update banner and the top bar both clear the status bar, without doubling up", async () => {
+    const css = (await import("node:fs")).readFileSync("src/shell/shell.css", "utf8");
+    expect(css).toMatch(/\.gr-banner \{[^}]*padding: calc\(env\(safe-area-inset-top\) \+ 10px\)/);
+    expect(css).toMatch(/\.gr-banner \+ \.gr-top \{ padding-top: 10px; \}/);
+    expect(css).toMatch(/\.gr-top \{[^}]*env\(safe-area-inset-top\)/);
+  });
+});

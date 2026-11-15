@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.2.1
+- Fix: the "Update available" banner was drawn under the iPhone status bar (clock, signal, battery), making Update now untappable in portrait. It now clears the safe area.
+
 ## 0.2.0 — Phase 1, Round 2 (storage, sync, Apps Script backend)
 - On-device storage in IndexedDB (memory fallback if the browser blocks it). Every edit is saved on the device first and marked pending.
 - Shared data layer (`src/core/data.js`): collections with unique ids, UpdatedAt on every record, soft deletes, schema version, typed fields stored as text, a codec seam for the Vault (Round 3).
