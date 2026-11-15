@@ -44,9 +44,12 @@ let startSpy, shrexy;
 const seedSettings = () => window.localStorage.setItem("grimoire:fitness:settings", JSON.stringify({ apiUrl: URL_, apiKey: KEY }));
 const open = async () => { window.location.hash = "#/app/fitness"; render(<App />); return screen.findByTestId("fitness-root"); };
 
-beforeEach(() => {
+beforeEach(async () => {
   startSpy = vi.spyOn(sync, "start").mockImplementation(() => {});
+  // Closing the previous test's Fitness schedules its last-chance send a moment later. Let it fire
+  // (into the old fake Sheet) before this test installs its own, or it would be counted here.
   cleanup();
+  await new Promise((r) => setTimeout(r, 50));
   window.localStorage.clear();
   window.location.hash = "";
   setSyncStatus({ pending: 0, lastSync: null, errors: [], configured: false, lastError: null, backendVersion: null });
