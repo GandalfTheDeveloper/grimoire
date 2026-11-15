@@ -127,10 +127,51 @@ export function createVault({ data, db, sync, getDeviceType, defaults = {}, iter
     await refresh();
   }
 
+  // Tries the passphrase as typed, then without stray spaces at either end (keyboards add them).
+  async function tryUnwrap(passphrase, rec) {
+    const variants = [passphrase];
+    const trimmed = String(passphrase).trim();
+    if (trimmed !== passphrase) variants.push(trimmed);
+    for (const v of variants) {
+      try { return await unwrapKeyRecord(v, rec); }
+      catch (e) { if (!(e instanceof VaultError) || e.code !== "passphrase") throw e; }
+    }
+    return null;
+  }
+
+  // Asks the Sheet for its own copy of the key record. Returns null when it cannot be reached.
+  async function fetchRemoteRecord() {
+    try {
+      const r = await sync.call({ action: "sync", items: [{ app: "core", coll: "vault", fields: Object.keys(keyCol.def.fields), since: 0, pull: true, records: [] }] });
+      const it = (r.items || [])[0];
+      const rec = ((it && it.records) || []).find((x) => x.id === VAULT_ID && !x.deleted);
+      if (!rec) return null;
+      const c = rec.cols || {};
+      return { Salt: String(c.Salt ?? ""), Iter: Number(c.Iter), Wrapped: String(c.Wrapped ?? ""), KeyId: String(c.KeyId ?? ""), Version: Number(c.Version) };
+    } catch { return null; }
+  }
+
   async function unlock(passphrase) {
     if (!record) throw new VaultError("notsetup", "The Vault is not set up yet");
-    const { key } = await unwrapKeyRecord(passphrase, record);
-    dataKey = key; keyId = record.KeyId;
+    let res = await tryUnwrap(passphrase, record);
+    let detail = "";
+    if (!res) {
+      // Not this device's copy. Compare it with the Sheet's copy so we can say which side is the problem.
+      const remote = sync && sync.call ? await fetchRemoteRecord() : null;
+      if (!remote) detail = "offline";
+      else if (["Salt", "Iter", "Wrapped", "KeyId"].every((k) => String(remote[k]) === String(record[k]))) detail = "same";
+      else {
+        detail = "differs";
+        res = await tryUnwrap(passphrase, remote);
+        if (res) { await keyCol.put(VAULT_ID, remote); await refresh(); } // the Sheet's copy is the good one: adopt it
+      }
+    }
+    if (!res) {
+      const e = new VaultError("passphrase", "Wrong passphrase");
+      e.detail = detail;
+      throw e;
+    }
+    dataKey = res.key; keyId = record.KeyId;
     await persist();
     emit();
   }

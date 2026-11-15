@@ -9,6 +9,12 @@
 | Text fix (`=` and `'`) | 0.2.2 | 0.2.1 |
 | Full screen (tablet) | 0.2.3 | 0.2.1 |
 | Round 3: Vault, files, backup | 0.3.0 | 0.3.0 |
+| Unlock fix and diagnosis | 0.3.1 | 0.3.0 |
+
+## App 0.3.1 (backend unchanged at 0.3.0)
+- Passphrase boxes have a Show / Hide button (typos were invisible).
+- Unlock also tries the passphrase without stray spaces at either end.
+- A failed unlock now compares this device's key with the Sheet's copy and says which is the problem. If this device's copy is damaged and the Sheet's copy works, it repairs itself. Setup refuses a passphrase that starts or ends with a space.
 
 ## App 0.3.0 / Backend 0.3.0 — Phase 1, Round 3
 - The Vault: passphrase, AES-256-GCM encryption on the device, lock/unlock, change passphrase, per-app encryption with a guided, verified migration (never erases the old tab), import/export.

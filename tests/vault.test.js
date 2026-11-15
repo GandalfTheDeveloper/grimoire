@@ -175,3 +175,47 @@ describe("phone stays unlocked, tablet does not", () => {
     expect(again.vault.getState()).toMatchObject({ setup: true, unlocked: false });
   });
 });
+
+describe("unlock diagnosis and repair", () => {
+  it("a stray space typed before or after the passphrase still unlocks", async () => {
+    const a = await dev({ name: "a" });
+    await a.vault.setup(PASS); await a.sync.syncNow("all"); await a.vault.lock();
+    await a.vault.unlock(PASS + " ");
+    expect(a.vault.unlocked).toBe(true);
+    await a.vault.lock();
+    await a.vault.unlock("  " + PASS);
+    expect(a.vault.unlocked).toBe(true);
+  });
+  it("a wrong passphrase says the key matches the Sheet's copy, so the typing is the problem", async () => {
+    const a = await dev({ name: "a" });
+    await a.vault.setup(PASS); await a.sync.syncNow("all"); await a.vault.lock();
+    await expect(a.vault.unlock("not the passphrase")).rejects.toMatchObject({ code: "passphrase", detail: "same" });
+  });
+  it("when the Sheet cannot be reached it says so instead of guessing", async () => {
+    const a = await dev({ name: "a" });
+    await a.vault.setup(PASS); await a.sync.syncNow("all"); await a.vault.lock();
+    backend.offline = true;
+    await expect(a.vault.unlock("not the passphrase")).rejects.toMatchObject({ code: "passphrase", detail: "offline" });
+  });
+  it("a damaged copy on this device is replaced by the Sheet's good copy, and unlock works", async () => {
+    const a = await dev({ name: "a" });
+    await a.vault.setup(PASS); await a.sync.syncNow("all"); await a.vault.lock();
+    const rec = await a.db.get("core|vault|vaultkey");
+    await a.db.put({ ...rec, cols: { ...rec.cols, Wrapped: "AAAA" + rec.cols.Wrapped.slice(4) } }); // damage only the local copy
+    await a.vault.refresh();
+    await a.vault.unlock(PASS);
+    expect(a.vault.unlocked).toBe(true);
+    await a.vault.lock();
+    await a.vault.unlock(PASS); // now the local copy is good again
+    expect(a.vault.unlocked).toBe(true);
+  });
+  it("if the Sheet's copy itself is damaged, the right passphrase is refused and the message says the copies differ", async () => {
+    const a = await dev({ name: "a" });
+    await a.vault.setup(PASS); await a.sync.syncNow("all"); await a.vault.lock();
+    const rec = await a.db.get("core|vault|vaultkey");
+    await a.db.put({ ...rec, cols: { ...rec.cols, Wrapped: "AAAA" + rec.cols.Wrapped.slice(4) } });
+    await a.vault.refresh();
+    backend.sheets.get("core_vault").getRange(2, 9).setValue("AAAA" + rec.cols.Wrapped.slice(4)); // damage in the Sheet too
+    await expect(a.vault.unlock(PASS)).rejects.toMatchObject({ code: "passphrase" });
+  });
+});

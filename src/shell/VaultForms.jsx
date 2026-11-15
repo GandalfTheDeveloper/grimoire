@@ -3,7 +3,27 @@ import { vault, sync } from "../core/index.js";
 import { MIN_PASSPHRASE } from "../core/vault.js";
 import { getSyncStatus } from "../core/syncStatus.js";
 
-const pw = { type: "password", autoCapitalize: "none", autoCorrect: "off", spellCheck: false, autoComplete: "off" };
+const pw = { autoCapitalize: "none", autoCorrect: "off", spellCheck: false, autoComplete: "off" };
+
+// One passphrase box with a Show button, so a typo can be seen instead of guessed at.
+function PassField({ label, testid, showid, value, onChange }) {
+  const [show, setShow] = useState(false);
+  return (
+    <label className="gr-field"><span>{label}</span>
+      <span style={{ display: "flex", gap: 8 }}>
+        <input data-testid={testid} {...pw} type={show ? "text" : "password"} value={value} onChange={onChange} style={{ flex: 1 }} />
+        <button type="button" className="gr-btn" data-testid={showid} onClick={() => setShow(!show)}>{show ? "Hide" : "Show"}</button>
+      </span>
+    </label>
+  );
+}
+
+const unlockProblem = (e) => {
+  if (e.code !== "passphrase") return e.message;
+  if (e.detail === "same") return "That passphrase didn't work. This device's key matches the one in your Sheet, so the key is fine and the passphrase typed doesn't match the one used to create the Vault. Tap Show and check for capital letters, spaces and look-alike characters.";
+  if (e.detail === "offline") return "That passphrase didn't work. (Could not reach the Sheet to double-check the key; try again when connected.) Tap Show to check what you typed.";
+  return "That passphrase didn't work. Tap Show to check what you typed.";
+};
 
 // First-time setup. The key record must reach the Sheet, so this needs the connection.
 export function VaultSetup({ onDone }) {
@@ -12,7 +32,7 @@ export function VaultSetup({ onDone }) {
   const [wrote, setWrote] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
-  const ok = p1.length >= MIN_PASSPHRASE && p1 === p2 && wrote && !busy;
+  const ok = p1.length >= MIN_PASSPHRASE && p1 === p2 && p1 === p1.trim() && wrote && !busy;
 
   const create = async () => {
     setBusy(true); setMsg("");
@@ -32,10 +52,9 @@ export function VaultSetup({ onDone }) {
 
   return (
     <div data-testid="vault-setup">
-      <label className="gr-field"><span>New passphrase (at least {MIN_PASSPHRASE} characters; a few random words works well)</span>
-        <input data-testid="vault-pass1" {...pw} value={p1} onChange={(e) => setP1(e.target.value)} /></label>
-      <label className="gr-field"><span>Type it again</span>
-        <input data-testid="vault-pass2" {...pw} value={p2} onChange={(e) => setP2(e.target.value)} /></label>
+      <PassField label={`New passphrase (at least ${MIN_PASSPHRASE} characters; a few random words works well)`} testid="vault-pass1" showid="vault-show1" value={p1} onChange={(e) => setP1(e.target.value)} />
+      <PassField label="Type it again" testid="vault-pass2" showid="vault-show2" value={p2} onChange={(e) => setP2(e.target.value)} />
+      {p1 !== p1.trim() && <p className="gr-note gr-fail" role="status">The passphrase starts or ends with a space. That is easy to miss when typing it later. Remove it.</p>}
       {p2 !== "" && p1 !== p2 && <p className="gr-note gr-fail" role="status">The two entries don't match.</p>}
       <label className="gr-row">
         <span>I wrote it down and will keep two copies in two separate places<small>It cannot be recovered. Not by Grimoire, not by anyone. If it is lost, encrypted data is gone for good.</small></span>
@@ -55,12 +74,12 @@ export function VaultUnlock({ onDone }) {
     if (e) e.preventDefault();
     setBusy(true); setMsg("");
     try { await vault.unlock(p); setP(""); if (onDone) onDone(); }
-    catch (err) { setMsg(err.code === "passphrase" ? "That passphrase didn't work." : err.message); }
+    catch (err) { setMsg(unlockProblem(err)); }
     setBusy(false);
   };
   return (
     <form data-testid="vault-unlock" onSubmit={go}>
-      <label className="gr-field"><span>Passphrase</span><input data-testid="vault-pass" {...pw} value={p} onChange={(e) => setP(e.target.value)} /></label>
+      <PassField label="Passphrase" testid="vault-pass" showid="vault-show" value={p} onChange={(e) => setP(e.target.value)} />
       <div className="gr-actions"><button type="submit" className="gr-btn primary" data-testid="vault-unlock-btn" disabled={busy || p === ""}>{busy ? "Unlocking…" : "Unlock"}</button></div>
       {msg && <p className="gr-note gr-fail" data-testid="vault-msg" role="status">{msg}</p>}
     </form>
@@ -83,9 +102,9 @@ export function ChangePassphrase() {
   };
   return (
     <div data-testid="vault-change">
-      <label className="gr-field"><span>Current passphrase</span><input data-testid="vault-old" {...pw} value={o} onChange={(e) => setO(e.target.value)} /></label>
-      <label className="gr-field"><span>New passphrase (at least {MIN_PASSPHRASE} characters)</span><input data-testid="vault-new1" {...pw} value={n1} onChange={(e) => setN1(e.target.value)} /></label>
-      <label className="gr-field"><span>New passphrase again</span><input data-testid="vault-new2" {...pw} value={n2} onChange={(e) => setN2(e.target.value)} /></label>
+      <PassField label="Current passphrase" testid="vault-old" showid="vault-show-old" value={o} onChange={(e) => setO(e.target.value)} />
+      <PassField label={`New passphrase (at least ${MIN_PASSPHRASE} characters)`} testid="vault-new1" showid="vault-show-new1" value={n1} onChange={(e) => setN1(e.target.value)} />
+      <PassField label="New passphrase again" testid="vault-new2" showid="vault-show-new2" value={n2} onChange={(e) => setN2(e.target.value)} />
       <div className="gr-actions"><button className="gr-btn primary" data-testid="vault-change-btn" disabled={!ok} onClick={go}>{busy ? "Changing…" : "Change passphrase"}</button></div>
       {msg && <p className="gr-note" data-testid="vault-change-msg" role="status">{msg}</p>}
     </div>
