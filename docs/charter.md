@@ -1,6 +1,6 @@
 # Grimoire Charter
 
-**Status: v1.2, updated 2026-11-15 (v1.0 approved 2026-11-09). Phase 0 (planning) is complete.** Every chat in this project follows this document. If a request conflicts with it, say so before proceeding. Changes to this charter happen only with Isaac's OK.
+**Status: v1.3, updated 2026-11-15 (v1.0 approved 2026-11-09). Phase 0 (planning) and Phase 1 (shell + core) are complete.** Every chat in this project follows this document. If a request conflicts with it, say so before proceeding. Changes to this charter happen only with Isaac's OK.
 
 ---
 
@@ -141,7 +141,7 @@ Google Sheets caps at 10 million cells per workbook. Banners warn at 80% of that
 - **Import / Export** buttons (paste or upload, copy everything out) work while unlocked, so copy-paste and moving data from existing sources (e.g. the journal Google Doc) still work.
 - **Recovery drill before real data:** lock, unlock on the other device, export, import. Must pass.
 - **Build-then-secure:** every app is built and tested with fake data. Real sensitive data goes in only after Claude runs the security checklist and Isaac sees it pass.
-- **Lost-device plan** (click-by-click, to be written in Phase 1): change the app key so the lost device can't sync, then re-key the vault so any remembered unlock stops working.
+- **Lost-device plan** (click-by-click, written: `docs/lost-device.md`): change the app key so the lost device can't sync, then re-key the vault so any remembered unlock stops working.
 - No bank connections, ever (Budget is manual entry and document uploads). No sharing between people. No reminders or notifications.
 
 ## 6. Files and photos
@@ -181,6 +181,7 @@ Supported from the start. They live in a "Grimoire Files" folder in Isaac's Driv
 1. ID and name. 2. Devices (phone, tablet, both). 3. Vault now, later, or never. 4. Dated items for a calendar feed? 5. Sheet tabs and columns (specs only, never data). 6. Cross-app connections needed. 7. Files/photos needed? 8. Own theme. 9. Create `docs/apps/<app>.md`. 10. Add to the index above.
 
 ## 11. Decision log
+- 2026-11-15 (v1.3): Phase 1 complete. Round 4 shipped app 0.4.0 (re-key, Check the Vault, recovery drill, photo test) and the written procedures `docs/lost-device.md`, `docs/rollback.md`, `docs/restore.md` and the standard test checklist `docs/device-tests.md`. Isaac confirmed the photo test, recovery drill and practice re-key passed on iPhone and tablet. Phase 2 (nest Fitness) is next.
 - 2026-11-15 (v1.2): Isaac's computer has no Node.js or npm, so no terminal block may contain `npm`, `node` or any build or test command. Builds and tests run in Claude's environment before each zip is sent, GitHub Actions builds on push, and Isaac confirms a green check on the Actions tab. The standard push block is `cd`; `git status`; `git add .`; `git commit`; `git push`. Replaces the earlier "stop on build failure" pattern, which could never run on his machine.
 - 2026-11-15: Added a "Read this first" block at the top: click-by-click is defined concretely and applies from the first reply of every chat; terminal steps are always one combined copy-paste block (starts with `cd` to the repo, `;` chaining, destructive or check-first steps kept separate). Repo path recorded. Section 10 numbering fixed.
 - 2026-11-15: Added SyncedAt to the record envelope so incremental download never misses late-arriving offline edits.

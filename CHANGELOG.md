@@ -23,6 +23,7 @@
 - Backend: no change (no Apps Script update needed this round).
 
 ## Docs only (no app change)
+- Charter v1.3: Phase 1 marked complete, lost-device plan points to `docs/lost-device.md`, decision-log entry.
 - `docs/charter.md` added to the repo, matching the project copy, now v1.2: no `npm`, `node` or build commands in Isaac's terminal blocks (his computer has no Node); builds and tests run before each zip and on GitHub Actions.
 
 ## App 0.3.2 (backend unchanged at 0.3.0)
