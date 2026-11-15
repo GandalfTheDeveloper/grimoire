@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, fireEvent, cleanup, act, waitFor } from "@testing-library/react";
 import App from "../src/shell/App.jsx";
 import { setSyncStatus, getSyncStatus } from "../src/core/syncStatus.js";
-import { sync, data, selftestCol, usage } from "../src/core/index.js";
+import { sync, data, selftestCol, usage, rekey } from "../src/core/index.js";
+import { RekeyForm } from "../src/shell/VaultForms.jsx";
 import { createBackend } from "./sim/sheetsSim.js";
 import { APPS } from "../src/apps/registry.js";
 
@@ -340,5 +341,48 @@ describe("warnings and new diagnostics rows", () => {
     fireEvent.click(screen.getByTestId("usage-dismiss"));
     expect(screen.queryByTestId("usage-banner")).toBeNull();
     vi.unstubAllGlobals();
+  });
+});
+
+describe("Round 4: re-key form and new diagnostics tools", () => {
+  it("the Re-key button needs the current passphrase and the box ticked; a short new passphrase blocks it", async () => {
+    const spy = vi.spyOn(rekey, "rekey").mockImplementation(async ({ passphrase, newPassphrase, onStep }) => {
+      onStep("Syncing everything first"); onStep("Re-encrypting on this device");
+      return { records: 7, tabs: 2, passphraseChanged: !!newPassphrase };
+    });
+    render(<RekeyForm />);
+    const go = screen.getByTestId("rekey-go");
+    expect(go.disabled).toBe(true);
+    fireEvent.change(screen.getByTestId("rekey-pass"), { target: { value: "the current one here" } });
+    expect(go.disabled).toBe(true);
+    fireEvent.click(screen.getByTestId("rekey-ack"));
+    expect(go.disabled).toBe(false);
+    fireEvent.change(screen.getByTestId("rekey-new"), { target: { value: "short" } });
+    expect(go.disabled).toBe(true);
+    expect(screen.getByText(/at least 12 characters and no space/)).toBeTruthy();
+    fireEvent.change(screen.getByTestId("rekey-new"), { target: { value: "" } });
+    fireEvent.click(go);
+    expect((await screen.findByTestId("rekey-done")).textContent).toMatch(/7 records re-encrypted/);
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ passphrase: "the current one here", newPassphrase: "" }));
+    expect(screen.getByTestId("rekey-pass").value).toBe(""); // passphrase is cleared after use
+  });
+  it("shows the plain reason when re-key stops, and says nothing was lost", async () => {
+    vi.spyOn(rekey, "rekey").mockRejectedValue(new Error("Some items are still waiting on this device. Wait for the green dot, then try again."));
+    render(<RekeyForm />);
+    fireEvent.change(screen.getByTestId("rekey-pass"), { target: { value: "the current one here" } });
+    fireEvent.click(screen.getByTestId("rekey-ack"));
+    fireEvent.click(screen.getByTestId("rekey-go"));
+    expect((await screen.findByTestId("rekey-error")).textContent).toMatch(/green dot/);
+    expect(screen.queryByTestId("rekey-done")).toBeNull();
+  });
+  it("diagnostics has the vault check, both drill steps and the photo picker, and they say so plainly with no connection", async () => {
+    render(<App />);
+    fireEvent.click(screen.getByTestId("open-settings"));
+    fireEvent.click(await screen.findByTestId("open-diagnostics"));
+    expect(await screen.findByTestId("diag-photo")).toBeTruthy();
+    for (const id of ["diag-vcheck", "diag-drill1", "diag-drill2"]) {
+      fireEvent.click(await screen.findByTestId(id));
+      await waitFor(() => expect(screen.getByTestId("diag-result").textContent).toMatch(/Not connected yet/));
+    }
   });
 });

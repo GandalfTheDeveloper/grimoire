@@ -11,6 +11,16 @@
 | Round 3: Vault, files, backup | 0.3.0 | 0.3.0 |
 | Unlock fix and diagnosis | 0.3.1 | 0.3.0 |
 | Start over for a lost passphrase | 0.3.2 | 0.3.0 |
+| Round 4: re-key, recovery drill, photo test, procedures | 0.4.0 | 0.3.0 |
+
+## App 0.4.0 (backend unchanged at 0.3.0) — Phase 1, Round 4
+- **Re-key** (Settings, The Vault, Lost a device? Re-key): new random data key, every encrypted record re-encrypted, every file key re-wrapped (Drive bytes untouched), new key record. Backs up the Sheet first, test-decrypts everything in memory before storing anything, stores it in one all-or-nothing local write, then reads it all back from the Sheet. Optional new passphrase in the same step. Other devices lock and ask for the passphrase.
+- **Check the Vault** (Diagnostics): tries every encrypted record and file key on the device, counts only.
+- **Recovery drill** (Diagnostics, Drill step 1 and step 2): fake data only; proves the other device unlocks with the passphrase and reads what the first saved, then export, lose the local copy, import.
+- **Photo test** (Diagnostics): pick a photo; checks the real shrink path (shape kept, within 1600 px, about 300 KB), plain and encrypted, then deletes the test files.
+- Docs: `docs/lost-device.md`, `docs/rollback.md`, `docs/restore.md`, `docs/device-tests.md` (the standard test checklist, also Phase 1's finish line); `docs/vault.md` and `docs/files.md` updated.
+- Tests: 8 re-key tests (two devices, corrupt record, wrong passphrase, missing app, restart), 8 drill and photo tests, 3 screen tests; bundle check now drives re-key through the real screens. Mutation-checked: removing the file-key re-wrap or the timestamp bump makes tests fail.
+- Backend: no change (no Apps Script update needed this round).
 
 ## Docs only (no app change)
 - `docs/charter.md` added to the repo, matching the project copy, now v1.2: no `npm`, `node` or build commands in Isaac's terminal blocks (his computer has no Node); builds and tests run before each zip and on GitHub Actions.

@@ -170,6 +170,30 @@ check("guided migration of an app runs (backup, check, switch) from the Settings
 check("the app now shows as Encrypted", /Encrypted/.test(text("vault-state-cookbook")));
 check("a backup was taken before the migration (two backups now)", [...backend.drive.files.values()].filter((f) => f.name.startsWith("Grimoire backup ")).length === 2);
 
+// ---------- Re-key (lost-device plan) ----------
+w.location.hash = "#/settings";
+await until(() => q("vault-open-rekey"));
+const oldKeyId = backend.rows("core_vault")[0].KeyId;
+const oldPayloads = backend.rows("selftest_vaultedenc").map((r) => r.Payload);
+check("there is encrypted data to re-key (the vault test rows)", oldPayloads.length > 0);
+click(q("vault-open-rekey"));
+await until(() => q("rekey-pass"));
+check("Re-key stays disabled until a passphrase is typed and the box is ticked", q("rekey-go").disabled);
+type(q("rekey-pass"), "definitely the wrong one"); click(q("rekey-ack"));
+await until(() => !q("rekey-go").disabled);
+click(q("rekey-go"));
+check("a wrong passphrase is refused and nothing changes in the Sheet", !!(await until(() => /not the current one/.test(text("rekey-error")), 15000)) && backend.rows("core_vault")[0].KeyId === oldKeyId);
+type(q("rekey-pass"), pass);
+await until(() => !q("rekey-go").disabled);
+click(q("rekey-go"));
+await until(() => q("rekey-done") || /still|cannot|could not|missing/i.test(text("rekey-error")), 40000);
+check("re-key runs, re-encrypts and reads everything back from the Sheet", !!q("rekey-done"), text("rekey-error") || text("rekey-done"));
+check("the Sheet now holds a different key record", backend.rows("core_vault")[0].KeyId !== oldKeyId);
+check("every encrypted record in the Sheet changed (none left on the old key)", backend.rows("selftest_vaultedenc").every((r) => !oldPayloads.includes(r.Payload)));
+check("a backup was taken before re-keying (three backups now)", [...backend.drive.files.values()].filter((f) => f.name.startsWith("Grimoire backup ")).length === 3);
+check("this device is still unlocked afterwards", /Unlocked/.test(text("vault-card")));
+w.location.hash = "#/app/journal";
+check("a Vault app still opens after the re-key", !!(await until(() => q("placeholder-journal"), 8000)));
 
 // ---------- Start over (lost passphrase) ----------
 w.location.hash = "#/settings";

@@ -39,7 +39,7 @@ Reply per item: `{ acked, rejected, stale, records, cursor, more, resetCursor, b
 
 ## Not built (later)
 - Vault codec and passphrase (Round 3). Files and photos (Round 3). Google cell-count and Drive storage warnings (Round 3).
-- Recovery drill, lost-device plan (click-by-click), iPhone and tablet testing (Round 4).
+- Done in Round 4: recovery drill, lost-device plan (`docs/lost-device.md`), rollback and restore procedures, device checklist (`docs/device-tests.md`).
 - Fitness handler for Shrexy's existing tabs (Phase 2).
 
 ## Open questions

@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { vault, sync } from "../core/index.js";
+import { vault, sync, rekey } from "../core/index.js";
 import { MIN_PASSPHRASE } from "../core/vault.js";
 import { getSyncStatus } from "../core/syncStatus.js";
 
 const pw = { autoCapitalize: "none", autoCorrect: "off", spellCheck: false, autoComplete: "off" };
 
 // One passphrase box with a Show button, so a typo can be seen instead of guessed at.
-function PassField({ label, testid, showid, value, onChange }) {
+export function PassField({ label, testid, showid, value, onChange }) {
   const [show, setShow] = useState(false);
   return (
     <label className="gr-field"><span>{label}</span>
@@ -135,6 +135,42 @@ export function ChangePassphrase() {
       <PassField label="New passphrase again" testid="vault-new2" showid="vault-show-new2" value={n2} onChange={(e) => setN2(e.target.value)} />
       <div className="gr-actions"><button className="gr-btn primary" data-testid="vault-change-btn" disabled={!ok} onClick={go}>{busy ? "Changing…" : "Change passphrase"}</button></div>
       {msg && <p className="gr-note" data-testid="vault-change-msg" role="status">{msg}</p>}
+    </div>
+  );
+}
+
+// Lost or replaced a device: swap the Vault's data key for a new one (docs/lost-device.md says when).
+export function RekeyForm() {
+  const [pass, setPass] = useState("");
+  const [next, setNext] = useState("");
+  const [ack, setAck] = useState(false);
+  const [steps, setSteps] = useState([]);
+  const [err, setErr] = useState("");
+  const [result, setResult] = useState(null);
+  const busy = steps.length > 0 && !result && !err;
+  const newBad = next !== "" && (next.length < MIN_PASSPHRASE || next !== next.trim());
+  const ok = pass !== "" && ack && !newBad && !busy;
+  const run = async () => {
+    setErr(""); setResult(null); setSteps(["Starting"]);
+    try {
+      const r = await rekey.rekey({ passphrase: pass, newPassphrase: next, onStep: (x) => setSteps((a) => [...a, x]) });
+      setResult(r); setPass(""); setNext(""); setAck(false);
+    } catch (e) { setErr(e.message); }
+  };
+  return (
+    <div data-testid="vault-rekey">
+      <p className="gr-note">Use this after losing a device, or if someone else may have used one. It makes a new key for the Vault and re-encrypts everything, so a lost phone's remembered unlock stops working. Do the other steps in the lost-device plan first (docs/lost-device.md). On every device, wait for the green dot before you start. It backs up the Sheet first and takes a minute or two. Keep Grimoire open until it says Done.</p>
+      <PassField label="Current passphrase" testid="rekey-pass" showid="rekey-show" value={pass} onChange={(e) => setPass(e.target.value)} />
+      <PassField label={`New passphrase (optional, at least ${MIN_PASSPHRASE} characters; leave empty to keep the current one)`} testid="rekey-new" showid="rekey-show-new" value={next} onChange={(e) => setNext(e.target.value)} />
+      {newBad && <p className="gr-note gr-fail" role="status">The new passphrase needs at least {MIN_PASSPHRASE} characters and no space at either end.</p>}
+      <label className="gr-row">
+        <span>My other devices will lock and ask for the passphrase again<small>This device stays unlocked. It cannot take back what a lost device already holds, so also erase it (see the plan).</small></span>
+        <input className="gr-check" type="checkbox" data-testid="rekey-ack" checked={ack} onChange={(e) => setAck(e.target.checked)} />
+      </label>
+      <div className="gr-actions"><button className="gr-btn primary" data-testid="rekey-go" disabled={!ok} onClick={run}>{busy ? "Re-keying…" : "Re-key the Vault"}</button></div>
+      {steps.length > 0 && !result && !err && <p className="gr-note" data-testid="rekey-progress" role="status">{steps[steps.length - 1]}</p>}
+      {err && <p className="gr-note gr-fail" data-testid="rekey-error" role="status">{err}</p>}
+      {result && <p className="gr-note gr-pass" data-testid="rekey-done" role="status">Done: {result.records} records re-encrypted with a new key and checked in the Sheet.{result.passphraseChanged ? " The passphrase was changed too: write the new one down in two places." : ""} Now unlock your other devices with the passphrase.</p>}
     </div>
   );
 }

@@ -214,5 +214,7 @@ export function createFiles({ data, db, vault, sync, shrink, now = () => Date.no
     get, trash: (app, id) => setTrashed(app, id, now()), restore: (app, id) => setTrashed(app, id, 0),
     purgeExpired, moveApp,
     pendingCount: () => pendingN,
+    // "Check the Vault": can this file's key still be opened with the current data key?
+    checkKey: (id, wrapped) => openFileKey(vault.key(), wrapped, id),
   };
 }

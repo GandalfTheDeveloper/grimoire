@@ -1,4 +1,4 @@
-# The Vault (Round 3)
+# The Vault (Rounds 3 and 4)
 
 Encrypts an app's records and files on the device before anything reaches the Sheet or Drive. Spec for tabs and columns only; Claude never reads your data.
 
@@ -21,8 +21,22 @@ Settings, The Vault, Import / export. Format `grimoire-export` v1 (JSON). **Expo
 
 ## Known limits
 - Two devices creating a Vault at the same moment: setup syncs first and refuses if one exists.
-- Re-key (new data key, for a lost device) is **deferred to Round 4**; changing the passphrase does not rotate the data key.
-- Photo shrinking uses the browser canvas and must be tried on real devices in Round 4.
+- Changing the passphrase does not rotate the data key. Re-key does (see below).
+- Photo shrinking uses the browser canvas; Diagnostics, Run photo test checks it on a real device (checklist in docs/device-tests.md).
+- An edit made offline under the OLD key on another device, not uploaded before a re-key ran, can end up unreadable. The lost-device plan says to wait for green dots first. Check the Vault reports how many records cannot be opened (counts only).
 
 ## Lost passphrase
 Unlock screen, Lost the passphrase? Start over, type RESET. Anything encrypted with the old key can never be opened again, so do this only while the Vault holds nothing you need.
+
+## Re-key (Round 4): lost-device plan
+Settings, The Vault, Lost a device? Re-key. Click-by-click plan: `docs/lost-device.md`.
+- **Why:** a phone that stays unlocked keeps the data key on the device. Changing the passphrase does not change that key. Re-key makes a new random data key, re-encrypts every encrypted record, re-wraps every per-file key (Drive file bytes are untouched) and writes a new key record with a new KeyId. Other devices see the KeyId change, lock, and need the passphrase again.
+- **Order of operations (`src/core/vaultRekey.js`):** checks (unlocked, passphrase right, Sheet reachable, this device downloads every app in the Vault, nothing frozen), sync and require nothing pending, Sheet backup, **re-encrypt everything in memory and test-decrypt each new ciphertext**, store all new ciphertext and the new key record in **one all-or-nothing local write** (`data.transaction`), upload, read every re-encrypted record back from the Sheet and decrypt it with the new key.
+- **Failure before the local write:** nothing changed anywhere (tested by corrupting a record). **Failure after it:** this device is on the new key; the message says to Sync now until green and run Check the Vault. Re-sending is safe (idempotent).
+- **Also re-encrypted:** deleted records (their old ciphertext would otherwise stay readable with the old key).
+- **Does not:** erase what a lost device already holds, or change older Drive backups (still under the old key, protected by the passphrase).
+- **Optional new passphrase** can be set in the same step (written down in two places, as always).
+- **Check the Vault** (Diagnostics): tries every encrypted record and file key on this device, reports counts only.
+
+## Recovery drill (Round 4)
+Diagnostics, Drill step 1 (first device) then Drill step 2 (other device). Uses the vault self-test collection and invented values only. Step 2 reads from the **Sheet**, decrypts with this device's own unlock, compares a fingerprint, exports as grimoire-export v1, deletes the local copy, imports, compares again, then cleans up. Steps in `docs/device-tests.md`, section D2.

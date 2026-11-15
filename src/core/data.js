@@ -235,6 +235,24 @@ export function createData({ db, now = () => Date.now() }) {
         return overwroteLocalEdit ? "overwrote-local" : "applied";
       });
     },
+    // Several records in ONE local write, run while no other write can happen. Used by re-key, which must swap
+    // every ciphertext and the key record together or not at all. build() returns the finished records;
+    // after() runs once they are stored (the Vault switches its key there).
+    async transaction(build, after) {
+      return serial(async () => {
+        const rows = await build();
+        await db.putMany(rows);
+        for (const r of rows) dirtyMap.set(r.pk, r);
+        if (after) await after();
+        const seen = new Set();
+        for (const r of rows) {
+          const k = `${r.app}|${r.coll}`;
+          if (!seen.has(k)) { seen.add(k); notify({ app: r.app, coll: r.coll }); }
+        }
+        writeListeners.forEach((l) => l());
+        return rows.length;
+      });
+    },
     // Recovery tool: mark every record dirty so the next sync re-sends everything (safe, upserts are idempotent).
     async markAllDirty() {
       return serial(async () => {

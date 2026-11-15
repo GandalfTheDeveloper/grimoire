@@ -87,17 +87,20 @@ export function createVault({ data, db, sync, getDeviceType, defaults = {}, iter
   const aad = (ctx) => `${ctx.app}|${ctx.coll}|${ctx.id}`;
   const requireKey = () => { if (!dataKey) throw new VaultError("locked", "The Vault is locked"); return dataKey; };
 
-  const codec = {
+  // A codec bound to a given key. The normal one uses whatever key the Vault holds right now; re-key
+  // builds a second one for the new key so it can write the new ciphertext before anything switches.
+  const makeCodec = (getKey) => ({
     columns: () => ["Payload"],
     async encode(values, fields, ctx) {
-      return { Payload: await sealJson(requireKey(), normalize(values, fields), aad(ctx)) };
+      return { Payload: await sealJson(getKey(), normalize(values, fields), aad(ctx)) };
     },
     async decode(cols, fields, ctx) {
-      const key = requireKey();
+      const key = getKey();
       if (!cols || !cols.Payload) return normalize({}, fields);
       return normalize(await openJson(key, cols.Payload, aad(ctx)), fields);
     },
-  };
+  });
+  const codec = makeCodec(requireKey);
 
   function appState(app) {
     return Object.prototype.hasOwnProperty.call(appStates, app) ? appStates[app] : defaults[app] ? "on" : "off";
@@ -133,7 +136,7 @@ export function createVault({ data, db, sync, getDeviceType, defaults = {}, iter
     const trimmed = String(passphrase).trim();
     if (trimmed !== passphrase) variants.push(trimmed);
     for (const v of variants) {
-      try { return await unwrapKeyRecord(v, rec); }
+      try { return { ...(await unwrapKeyRecord(v, rec)), used: v }; }
       catch (e) { if (!(e instanceof VaultError) || e.code !== "passphrase") throw e; }
     }
     return null;
@@ -202,6 +205,26 @@ export function createVault({ data, db, sync, getDeviceType, defaults = {}, iter
     await refresh();
   }
 
+  // ---- Re-key (lost-device plan). The steps live in vaultRekey.js; these are the Vault's two parts. ----
+  // Checks the passphrase and makes a brand-new data key plus the record that wraps it. Nothing switches yet.
+  // newPassphrase is optional: leave it out to keep the current passphrase.
+  async function prepareRekey(passphrase, newPassphrase) {
+    if (!record) throw new VaultError("notsetup", "The Vault is not set up yet");
+    requireKey();
+    const res = await tryUnwrap(passphrase, record);
+    if (!res) throw new VaultError("passphrase", "That passphrase is not the current one");
+    const next = newPassphrase ? String(newPassphrase) : res.used;
+    if (newPassphrase && next.length < MIN_PASSPHRASE) throw new VaultError("short", `The new passphrase needs at least ${MIN_PASSPHRASE} characters`);
+    const { record: rec, raw } = await createKeyRecord(next, { iterations });
+    const key = await importDataKey(raw, false);
+    return { record: rec, key, codec: makeCodec(() => key), oldKey: dataKey };
+  }
+  // Called inside the data layer's exclusive write, in the same step that stores the new ciphertext locally.
+  async function commitRekey(rec, key) {
+    dataKey = key; keyId = rec.KeyId; record = rec;
+    await persist();
+  }
+
   async function setAppState(app, state) {
     if (!APP_STATES.includes(state)) throw new Error("bad state");
     await appsCol.put(`app-${app}`, { App: app, State: state });
@@ -209,7 +232,7 @@ export function createVault({ data, db, sync, getDeviceType, defaults = {}, iter
   }
 
   return {
-    init, refresh, setup, unlock, lock, reset, changePassphrase, setAppState,
+    init, refresh, setup, unlock, lock, reset, changePassphrase, setAppState, prepareRekey, commitRekey,
     codec, guard, appState, activeSide, isEncrypted, isFrozen,
     getState: () => snap,
     subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },

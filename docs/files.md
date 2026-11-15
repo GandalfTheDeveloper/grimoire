@@ -8,7 +8,8 @@
 
 ## Weekly backup
 - A Sunday ~3 AM trigger copies the Sheet into Drive folder "Grimoire Backups" and keeps the newest 8. **Drive files are not copied.** Back up now (Diagnostics) does the same on demand and also runs before every Vault migration.
-- Restore: open the backup copy in Drive, copy its tabs into the live Sheet (or point the backend at the copy), then in Grimoire run Diagnostics, Re-send everything.
+- Restore: click-by-click in `docs/restore.md`.
+- Photo test (Diagnostics): picks a photo on the device, runs the real shrink and upload path plain and encrypted, checks it kept its shape, stayed within 1600 px and about 300 KB, then deletes the test files. Reports sizes only.
 
 ## Usage warnings
 Checked at most daily. Banner at 80% of the Sheet's 10,000,000 cells and at 85% of Google storage. Details in Diagnostics.

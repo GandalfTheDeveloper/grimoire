@@ -8,6 +8,7 @@ import { createVault } from "../../src/core/vault.js";
 import { createCollections } from "../../src/core/vaultData.js";
 import { createFiles } from "../../src/core/files.js";
 import { createMigration } from "../../src/core/vaultMigrate.js";
+import { createRekey } from "../../src/core/vaultRekey.js";
 import { createUsage } from "../../src/core/usage.js";
 import { SELFTEST, selftestFields, VAULT_TEST } from "../../src/core/selftest.js";
 
@@ -38,10 +39,11 @@ export function makeDevice(backend, { name = "dev", type = "phone", clock = () =
   const files = createFiles({ data, db, vault, sync, shrink: shrink || (async (b) => ({ bytes: new Uint8Array([1, 2, 3]), mime: "image/jpeg" })), now: () => clock() });
   const migration = createMigration({ data, vault, sync, files, collectionsFor });
   const usage = createUsage({ sync, db, now: () => clock() });
+  const rekey = createRekey({ data, db, vault, sync, files, collectionsFor, getAppsOnDevice: () => apps, allApps: [{ id: "demoapp", name: "Demo" }], now: () => clock() });
   const items = data.define({ ...SELFTEST, fields: selftestFields, onDemand: true });
   const vaulted = defineCollection({ ...VAULT_TEST, fields: selftestFields, alwaysVault: true });
   const notes = defineCollection({ app: "demoapp", name: "notes", fields: demoFields });
-  const dev = { name, type, db, data, sync, vault, files, migration, usage, items, vaulted, notes, defineCollection, collectionsFor, calls, cfg, factory };
+  const dev = { name, type, db, data, sync, vault, files, migration, rekey, usage, items, vaulted, notes, defineCollection, collectionsFor, calls, cfg, factory };
   dev.restart = async () => { // a fresh app launch on the same stored data
     const d2 = makeDevice(backend, { name, type, clock, factory, shrink, apps, defaults });
     await d2.vault.init(); await d2.files.init();

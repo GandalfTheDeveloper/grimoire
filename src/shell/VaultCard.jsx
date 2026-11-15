@@ -4,7 +4,7 @@ import { APPS } from "../apps/registry.js";
 import { vault, sync, migration, collectionsFor } from "../core/index.js";
 import { exportApp, importApp, parseExport } from "../core/vaultIO.js";
 import { useVaultState } from "./useVault.js";
-import { VaultSetup, VaultUnlock, ChangePassphrase } from "./VaultForms.jsx";
+import { VaultSetup, VaultUnlock, ChangePassphrase, RekeyForm } from "./VaultForms.jsx";
 
 const STATE_TEXT = { off: "Not encrypted", on: "Encrypted", in: "Moving in…", out: "Moving out…" };
 
@@ -123,9 +123,11 @@ export default function VaultCard() {
             <div className="gr-actions">
               <button className="gr-btn" data-testid="vault-open-change" onClick={() => setOpen(open === "change" ? "" : "change")}>Change passphrase</button>
               <button className="gr-btn" data-testid="vault-open-io" onClick={() => setOpen(open === "io" ? "" : "io")}>Import / export</button>
+              <button className="gr-btn" data-testid="vault-open-rekey" onClick={() => setOpen(open === "rekey" ? "" : "rekey")}>Lost a device? Re-key</button>
             </div>
             {open === "change" && <ChangePassphrase />}
             {open === "io" && <ImportExport />}
+            {open === "rekey" && <RekeyForm />}
           </>
         )}
       </div>

@@ -3,8 +3,10 @@ import { getSyncStatus, subscribeSync } from "../core/syncStatus.js";
 import { allKeys } from "../core/storage.js";
 import { APPS } from "../apps/registry.js";
 import { deviceType } from "../core/device.js";
-import { db, data, sync, selftestCol, vault, vaultTestCol, files, usage } from "../core/index.js";
-import { runSelfTest, clearSelfTest, runVaultTest, clearVaultTest, runFileTest } from "../core/selftest.js";
+import { db, data, sync, selftestCol, vault, vaultTestCol, files, usage, collectionsFor } from "../core/index.js";
+import { getDeviceId } from "../core/syncConfig.js";
+import { checkVault } from "../core/vaultRekey.js";
+import { runSelfTest, clearSelfTest, runVaultTest, clearVaultTest, runFileTest, prepareDrill, checkDrill, runPhotoTest } from "../core/selftest.js";
 import { useVaultState } from "./useVault.js";
 
 // No personal content here. Copy-paste friendly on purpose.
@@ -54,6 +56,14 @@ export default function Diagnostics() {
   });
   const vaultClear = act("vclear", async () => ({ pass: true, text: `Cleared ${await clearVaultTest({ col: vaultTestCol, sync })} vault test records.` }));
   const fileTest = act("ftest", async () => runFileTest({ files, vault }));
+  const vaultCheck = act("vcheck", async () => checkVault({ data, db, vault, files }));
+  const drill1 = act("drill1", async () => prepareDrill({ col: vaultTestCol, sync, vault, data, deviceId: getDeviceId() }));
+  const drill2 = act("drill2", async () => checkDrill({ col: vaultTestCol, sync, vault, data, deviceId: getDeviceId(), collectionsFor }));
+  const photoPicked = (e) => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (f) act("photo", () => runPhotoTest({ file: f, files, vault }))();
+  };
   const backupNow = act("backup", async () => { const r = await sync.call({ action: "backup" }); return { pass: true, text: `Backup made: ${r.name}. ${r.kept} kept (the last 8) in the Drive folder "Grimoire Backups".` }; });
   const checkUsage = act("usage", async () => { const st = await usage.check({ force: true }); return { pass: st.warnings.length === 0, text: st.warnings.length ? st.warnings.join(" ") : "Usage is fine: the Sheet and your Google storage are well under their limits." }; });
 
@@ -104,12 +114,20 @@ export default function Diagnostics() {
           <button className="gr-btn" data-testid="diag-ftest" disabled={off} onClick={fileTest}>{busy === "ftest" ? "Testing…" : "Run file test"}</button>
         </div>
         <div className="gr-actions">
+          <button className="gr-btn" data-testid="diag-vcheck" disabled={off} onClick={vaultCheck}>{busy === "vcheck" ? "Checking…" : "Check the Vault"}</button>
+          <button className="gr-btn" data-testid="diag-drill1" disabled={off} onClick={drill1}>{busy === "drill1" ? "Working…" : "Drill step 1 (first device)"}</button>
+          <button className="gr-btn" data-testid="diag-drill2" disabled={off} onClick={drill2}>{busy === "drill2" ? "Working…" : "Drill step 2 (other device)"}</button>
+        </div>
+        <label className="gr-field"><span>Photo test: pick any photo from this device. Only sizes are reported; it is deleted right after.</span>
+          <input type="file" accept="image/*" data-testid="diag-photo" disabled={off} onChange={photoPicked} /></label>
+        <div className="gr-actions">
           <button className="gr-btn" data-testid="diag-backup" disabled={off} onClick={backupNow}>{busy === "backup" ? "Backing up…" : "Back up now"}</button>
           <button className="gr-btn" data-testid="diag-usage" disabled={off} onClick={checkUsage}>Check usage</button>
         </div>
       </div>
       {result && <p className={"gr-note " + (result.pass ? "gr-pass" : "gr-fail")} data-testid="diag-result" role="status">{result.text}</p>}
       <p className="gr-note">The sync test writes three invented rows (times, dates, leading zeros, a formula) into a tab named selftest_items and reads them back to prove Sheets doesn't mangle them. "Re-send everything" is for after you restore the Sheet from a backup. It is safe to run any time.</p>
+      <p className="gr-note">Check the Vault tries to open everything encrypted on this device and reports counts only. The recovery drill proves your other device can unlock and read what this one saved: run step 1 here (it ends by telling you to tap Lock now), then step 2 on the other device. It uses invented records only.</p>
       <p className="gr-note">The vault test (needs the Vault unlocked) writes two invented records and checks in the real Sheet that they are scrambled and decrypt back exactly. The file test sends a few MB of invented bytes through your Drive, plain and encrypted, then deletes them. Back up now makes a copy of the Sheet right away, like the weekly one.</p>
     </div>
   );

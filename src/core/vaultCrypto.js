@@ -122,3 +122,8 @@ export async function newFileKey(dataKey, fileId) {
 export async function openFileKey(dataKey, wrapped, fileId) {
   return importDataKey(await openBytes(dataKey, unb64(wrapped), "filekey|" + fileId), false);
 }
+// Re-key: the same per-file key, wrapped by the NEW data key. The file's bytes in Drive are untouched.
+export async function rewrapFileKey(oldDataKey, newDataKey, wrapped, fileId) {
+  const raw = await openBytes(oldDataKey, unb64(wrapped), "filekey|" + fileId);
+  return b64(await sealBytes(newDataKey, raw, "filekey|" + fileId));
+}

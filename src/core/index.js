@@ -11,6 +11,7 @@ import { createVault } from "./vault.js";
 import { createCollections } from "./vaultData.js";
 import { createFiles } from "./files.js";
 import { createMigration } from "./vaultMigrate.js";
+import { createRekey } from "./vaultRekey.js";
 import { createUsage } from "./usage.js";
 import { shrinkPhoto } from "./photo.js";
 import { SELFTEST, selftestFields, VAULT_TEST } from "./selftest.js";
@@ -22,6 +23,7 @@ export const vault = createVault({ data, db, sync, getDeviceType: deviceType, de
 export const { defineCollection, collectionsFor } = createCollections({ data, vault });
 export const files = createFiles({ data, db, vault, sync, shrink: shrinkPhoto });
 export const migration = createMigration({ data, vault, sync, files, collectionsFor });
+export const rekey = createRekey({ data, db, vault, sync, files, collectionsFor, getAppsOnDevice: loadAppsOnDevice, allApps: APPS });
 export const usage = createUsage({ sync, db });
 sync.onAfterSync(async () => { try { await usage.check(); } catch { /* shown when checked by hand in Diagnostics */ } });
 export const selftestCol = data.define({ ...SELFTEST, fields: selftestFields, onDemand: true });

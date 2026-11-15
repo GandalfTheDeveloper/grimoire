@@ -16,7 +16,7 @@
 ## Not built yet (later rounds)
 - ~~Real sync, IndexedDB storage, Apps Script router and key~~ done in Round 2, see `docs/sync.md`.
 - Vault, files, remaining diagnostics rows: Google cell-count and Drive-storage warnings (Round 3).
-- iPhone and tablet testing, recovery drill, lost-device plan (Round 4).
+- Done in Round 4: iPhone and tablet checklist (`docs/device-tests.md`), recovery drill, lost-device plan.
 - `docs/charter.md` copy of the charter (add so it matches the project copy exactly).
 
 ## Open questions
