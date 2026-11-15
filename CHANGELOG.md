@@ -12,6 +12,9 @@
 | Unlock fix and diagnosis | 0.3.1 | 0.3.0 |
 | Start over for a lost passphrase | 0.3.2 | 0.3.0 |
 
+## Docs only (no app change)
+- `docs/charter.md` added to the repo, matching the project copy, now v1.2: no `npm`, `node` or build commands in Isaac's terminal blocks (his computer has no Node); builds and tests run before each zip and on GitHub Actions.
+
 ## App 0.3.2 (backend unchanged at 0.3.0)
 - "Lost the passphrase? Start over" on the unlock screen. Needs RESET typed. It flags the key record deleted (never erases it); anything encrypted with the old key stays unreadable. Other devices fall back to the setup screen.
 

@@ -1,6 +1,6 @@
 # Grimoire Charter
 
-**Status: v1.1, updated 2026-11-15 (v1.0 approved 2026-11-09). Phase 0 (planning) is complete.** Every chat in this project follows this document. If a request conflicts with it, say so before proceeding. Changes to this charter happen only with Isaac's OK.
+**Status: v1.2, updated 2026-11-15 (v1.0 approved 2026-11-09). Phase 0 (planning) is complete.** Every chat in this project follows this document. If a request conflicts with it, say so before proceeding. Changes to this charter happen only with Isaac's OK.
 
 ---
 
@@ -18,8 +18,10 @@
 - One code block per task, with all its commands combined, so Isaac only has to press Claude's copy button, paste into PowerShell (or the VS Code terminal), and press Enter.
 - Every block starts with `cd "C:\Users\Brunn\Downloads\grimoire"` so it works wherever the terminal opened.
 - Chain commands with `;` (not `&&`, which older Windows PowerShell doesn't support).
-- If a build or test comes before a commit or push, the block must stop on failure so a broken build is never committed or pushed. Pattern:
-  `npm run build; if ($LASTEXITCODE -eq 0) { git add .; git commit -m "message"; git push } else { Write-Host "BUILD FAILED - nothing was committed" }`
+- **Isaac's computer has no Node.js or npm.** Never put `npm`, `node`, `npx` or any build or test command in a block he runs. Claude builds and tests in its own environment before every zip is sent (rule 3 in section 2), and GitHub Actions builds again on every push. The Actions tab is where Isaac confirms the result.
+- The standard push block, after the zip has been extracted over the repo folder:
+  `cd "C:\Users\Brunn\Downloads\grimoire"; git status; git add .; git commit -m "message"; git push`
+  followed by: open the repo on github.com, click the **Actions** tab, and wait for a green check on the top run. If the run is red, Isaac sends Claude the error text from the failed step.
 - Only runnable commands go inside the block: no `PS>` prompts, no explanations. Explanations, where to paste it, and "You should see: ..." go outside the block.
 - **Do not combine** destructive commands (`reset --hard`, force push, deleting files) or any step where Isaac must check the output before continuing. Give those their own labeled block with a warning.
 - If a task has several parts, give one block per part, each with a short heading.
@@ -179,7 +181,8 @@ Supported from the start. They live in a "Grimoire Files" folder in Isaac's Driv
 1. ID and name. 2. Devices (phone, tablet, both). 3. Vault now, later, or never. 4. Dated items for a calendar feed? 5. Sheet tabs and columns (specs only, never data). 6. Cross-app connections needed. 7. Files/photos needed? 8. Own theme. 9. Create `docs/apps/<app>.md`. 10. Add to the index above.
 
 ## 11. Decision log
-- 2026-11-15: Added a "Read this first" block at the top: click-by-click is defined concretely and applies from the first reply of every chat; terminal steps are always one combined copy-paste block (starts with `cd` to the repo, `;` chaining, stops on build failure, destructive or check-first steps kept separate). Repo path recorded. Section 10 numbering fixed.
+- 2026-11-15 (v1.2): Isaac's computer has no Node.js or npm, so no terminal block may contain `npm`, `node` or any build or test command. Builds and tests run in Claude's environment before each zip is sent, GitHub Actions builds on push, and Isaac confirms a green check on the Actions tab. The standard push block is `cd`; `git status`; `git add .`; `git commit`; `git push`. Replaces the earlier "stop on build failure" pattern, which could never run on his machine.
+- 2026-11-15: Added a "Read this first" block at the top: click-by-click is defined concretely and applies from the first reply of every chat; terminal steps are always one combined copy-paste block (starts with `cd` to the repo, `;` chaining, destructive or check-first steps kept separate). Repo path recorded. Section 10 numbering fixed.
 - 2026-11-15: Added SyncedAt to the record envelope so incremental download never misses late-arriving offline edits.
 - 2026-11-09 (charter review): v1.0 approved. No app/tool distinction; every app can save data. Claude reminds Isaac to open a new chat when he returns for more tweaks. Encryption can be enabled per app at any time (guided migration, backup first).
 - 2026-11-06: Name "Grimoire." Reuse Sheet and Apps Script. New repo, new deployment, new key.
