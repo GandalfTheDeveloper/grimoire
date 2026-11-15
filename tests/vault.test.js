@@ -219,3 +219,27 @@ describe("unlock diagnosis and repair", () => {
     await expect(a.vault.unlock(PASS)).rejects.toMatchObject({ code: "passphrase" });
   });
 });
+
+describe("start over after a lost passphrase", () => {
+  it("deletes the key everywhere, lets a new Vault be created, and the old passphrase no longer matters", async () => {
+    const a = await dev({ name: "a" });
+    const b = await dev({ name: "b", type: "tablet" });
+    await a.vault.setup(PASS); await a.sync.syncNow("all"); await b.sync.syncNow("all");
+    expect(b.vault.setupDone).toBe(true);
+    await a.vault.lock();
+    await a.vault.reset();
+    expect(a.vault.setupDone).toBe(false);
+    expect(a.vault.unlocked).toBe(false);
+    await a.sync.syncNow("all"); await b.sync.syncNow("all");
+    expect(b.vault.setupDone).toBe(false); // the other device sees it is gone
+    await a.vault.setup("a brand new passphrase");
+    await a.sync.syncNow("all"); await b.sync.syncNow("all");
+    await expect(b.vault.unlock(PASS)).rejects.toMatchObject({ code: "passphrase" });
+    await b.vault.unlock("a brand new passphrase");
+    expect(b.vault.unlocked).toBe(true);
+  });
+  it("refuses when there is no Vault", async () => {
+    const a = await dev({ name: "a" });
+    await expect(a.vault.reset()).rejects.toMatchObject({ code: "notsetup" });
+  });
+});

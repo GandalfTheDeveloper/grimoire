@@ -10,6 +10,10 @@
 | Full screen (tablet) | 0.2.3 | 0.2.1 |
 | Round 3: Vault, files, backup | 0.3.0 | 0.3.0 |
 | Unlock fix and diagnosis | 0.3.1 | 0.3.0 |
+| Start over for a lost passphrase | 0.3.2 | 0.3.0 |
+
+## App 0.3.2 (backend unchanged at 0.3.0)
+- "Lost the passphrase? Start over" on the unlock screen. Needs RESET typed. It flags the key record deleted (never erases it); anything encrypted with the old key stays unreadable. Other devices fall back to the setup screen.
 
 ## App 0.3.1 (backend unchanged at 0.3.0)
 - Passphrase boxes have a Show / Hide button (typos were invisible).

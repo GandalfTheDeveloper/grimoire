@@ -66,6 +66,33 @@ export function VaultSetup({ onDone }) {
   );
 }
 
+// Only for a lost passphrase. Needs RESET typed in capitals so it cannot happen by accident.
+function StartOver() {
+  const [open, setOpen] = useState(false);
+  const [word, setWord] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  const go = async () => {
+    setBusy(true); setMsg("");
+    try { await vault.reset(); await sync.syncNow("all"); }
+    catch (e) { setMsg(e.message); }
+    setBusy(false);
+  };
+  if (!open) return <div className="gr-actions"><button type="button" className="gr-btn" data-testid="vault-startover" onClick={() => setOpen(true)}>Lost the passphrase? Start over</button></div>;
+  return (
+    <div data-testid="vault-reset">
+      <p className="gr-note gr-fail">Starting over deletes this Vault's key. Anything already encrypted with it can never be opened again, by anyone. Only do this if the Vault holds nothing you need. Your other devices will ask you to set up a new Vault.</p>
+      <label className="gr-field"><span>Type RESET to confirm</span>
+        <input data-testid="vault-reset-word" autoCapitalize="characters" autoCorrect="off" spellCheck={false} value={word} onChange={(e) => setWord(e.target.value)} /></label>
+      <div className="gr-actions">
+        <button type="button" className="gr-btn primary" data-testid="vault-reset-go" disabled={word !== "RESET" || busy} onClick={go}>{busy ? "Resetting…" : "Delete the key and start over"}</button>
+        <button type="button" className="gr-btn" onClick={() => { setOpen(false); setWord(""); }}>Cancel</button>
+      </div>
+      {msg && <p className="gr-note gr-fail" role="status">{msg}</p>}
+    </div>
+  );
+}
+
 export function VaultUnlock({ onDone }) {
   const [p, setP] = useState("");
   const [busy, setBusy] = useState(false);
@@ -82,6 +109,7 @@ export function VaultUnlock({ onDone }) {
       <PassField label="Passphrase" testid="vault-pass" showid="vault-show" value={p} onChange={(e) => setP(e.target.value)} />
       <div className="gr-actions"><button type="submit" className="gr-btn primary" data-testid="vault-unlock-btn" disabled={busy || p === ""}>{busy ? "Unlocking…" : "Unlock"}</button></div>
       {msg && <p className="gr-note gr-fail" data-testid="vault-msg" role="status">{msg}</p>}
+      <StartOver />
     </form>
   );
 }

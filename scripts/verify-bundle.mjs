@@ -170,6 +170,22 @@ check("guided migration of an app runs (backup, check, switch) from the Settings
 check("the app now shows as Encrypted", /Encrypted/.test(text("vault-state-cookbook")));
 check("a backup was taken before the migration (two backups now)", [...backend.drive.files.values()].filter((f) => f.name.startsWith("Grimoire backup ")).length === 2);
 
+
+// ---------- Start over (lost passphrase) ----------
+w.location.hash = "#/settings";
+await until(() => q("vault-lock"));
+click(q("vault-lock"));
+await until(() => q("vault-startover"));
+click(q("vault-startover"));
+check("Start over is offered on the unlock screen, and is disabled until RESET is typed", !!(await until(() => q("vault-reset-go"))) && q("vault-reset-go").disabled);
+type(q("vault-reset-word"), "reset"); await sleep(30);
+check("lower-case 'reset' does not enable it", q("vault-reset-go").disabled);
+type(q("vault-reset-word"), "RESET");
+await until(() => !q("vault-reset-go").disabled);
+click(q("vault-reset-go"));
+check("after RESET the Vault card goes back to setup", !!(await until(() => /Not set up yet/.test(text("vault-card")) && q("vault-setup"), 20000)));
+check("the key record is flagged deleted in the Sheet, never erased", backend.rows("core_vault").length === 1 && backend.rows("core_vault")[0].Deleted === 1);
+
 const keys = Object.keys(w.localStorage);
 check("every on-device storage key is prefixed grimoire:", keys.length > 0 && keys.every((k) => k.startsWith("grimoire:")), keys.join(", "));
 check("no page errors were logged", errors.length === 0, errors.slice(0, 3).join(" | "));

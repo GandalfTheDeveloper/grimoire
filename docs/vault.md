@@ -23,3 +23,6 @@ Settings, The Vault, Import / export. Format `grimoire-export` v1 (JSON). **Expo
 - Two devices creating a Vault at the same moment: setup syncs first and refuses if one exists.
 - Re-key (new data key, for a lost device) is **deferred to Round 4**; changing the passphrase does not rotate the data key.
 - Photo shrinking uses the browser canvas and must be tried on real devices in Round 4.
+
+## Lost passphrase
+Unlock screen, Lost the passphrase? Start over, type RESET. Anything encrypted with the old key can never be opened again, so do this only while the Vault holds nothing you need.

@@ -176,6 +176,16 @@ export function createVault({ data, db, sync, getDeviceType, defaults = {}, iter
     emit();
   }
 
+  // Start over. Only for a Vault whose passphrase is lost. Anything encrypted with the old key stays
+  // unreadable forever, so the screens that call this make the person type RESET first.
+  async function reset() {
+    if (!record) throw new VaultError("notsetup", "The Vault is not set up yet");
+    await keyCol.remove(VAULT_ID);
+    dataKey = null; keyId = null;
+    await unpersist();
+    await refresh();
+  }
+
   async function lock() {
     dataKey = null; keyId = null;
     await unpersist();
@@ -199,7 +209,7 @@ export function createVault({ data, db, sync, getDeviceType, defaults = {}, iter
   }
 
   return {
-    init, refresh, setup, unlock, lock, changePassphrase, setAppState,
+    init, refresh, setup, unlock, lock, reset, changePassphrase, setAppState,
     codec, guard, appState, activeSide, isEncrypted, isFrozen,
     getState: () => snap,
     subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
