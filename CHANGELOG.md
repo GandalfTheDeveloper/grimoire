@@ -1,5 +1,18 @@
 # Changelog
 
+**Two separate version numbers.** The *app* version is the Build number at the bottom of the home screen. The *backend* version is the Apps Script version shown in Diagnostics and after Save and test. They move independently.
+
+| Release | App (Build) | Backend |
+|---|---|---|
+| Round 2 first delivery | 0.2.0 | 0.2.0 |
+| Update banner fix | 0.2.1 | 0.2.0 |
+| Text fix (`=` and `'`) | 0.2.2 | 0.2.1 |
+
+## App 0.2.2 / Backend 0.2.1
+- App 0.2.2: no app behavior change. It exists so the app number moves forward when the repo is updated with the backend fix below (the app was already 0.2.1 from the banner fix).
+- Backend 0.2.1 (Apps Script only):
+- Fix found by the in-app sync test on the real Sheet: text starting with `=` was evaluated as a formula and a leading apostrophe was dropped. Both are now stored exactly as sent. Backend version is 0.2.1 so you can confirm the new code is deployed.
+
 ## 0.2.1
 - Fix: the "Update available" banner was drawn under the iPhone status bar (clock, signal, battery), making Update now untappable in portrait. It now clears the safe area.
 
@@ -23,3 +36,5 @@
 - GitHub Actions deploy workflow (runs tests, then builds, then deploys to Pages).
 - Placeholder Grimoire icon.
 - Sync status is a stub (always green, 0 pending) until Round 2.
+
+

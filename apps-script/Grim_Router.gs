@@ -2,7 +2,7 @@
 // Everything here is prefixed grim / GRIM_ so it cannot collide with the old Shrexy script in the same project.
 // The key lives in Script Properties (GRIMOIRE_KEY), never in this file, and arrives in the request body.
 
-const GRIM_VERSION = "0.2.0";
+const GRIM_VERSION = "0.2.1";
 
 // One line per app. Add a new app = add its handler file + one line here, then deploy a new version.
 const GRIM_HANDLERS = {

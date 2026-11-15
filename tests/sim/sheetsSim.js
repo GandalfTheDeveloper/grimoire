@@ -15,11 +15,14 @@ const EPOCH_1899 = Date.UTC(1899, 11, 30);
 
 function convert(v, format, opts) {
   if (typeof v !== "string") return v;
+  // Observed on the real Sheet, even in plain-text cells: a leading = is evaluated as a formula,
+  // and a leading apostrophe is swallowed (it is Sheets' "treat as text" marker).
+  if (v.startsWith("=")) return 2;
+  if (v.startsWith("'")) return v.slice(1);
   if (format === "@" && !opts.ignoreTextFormat) return v;
   if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return new Date(Date.parse(v + "T00:00:00Z"));
   const t = /^(\d{1,3}):(\d{2})$/.exec(v);
   if (t) return new Date(EPOCH_1899 + (Number(t[1]) * 60 + Number(t[2])) * 60000);
-  if (/^[=]/.test(v)) return 2; // any formula "calculates"
   if (/^[+-]?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(v)) return Number(v);
   if (v === "TRUE" || v === "FALSE") return v === "TRUE";
   return v;

@@ -132,7 +132,7 @@ describe("saving never waits and never loses", () => {
     expect(d.data.pendingCount()).toBe(0);
     expect(sheetRows()).toHaveLength(3);
     expect(getSyncStatus().lastSync).toBeTruthy();
-    expect(getSyncStatus().backendVersion).toBe("0.2.0");
+    expect(getSyncStatus().backendVersion).toBe("0.2.1");
   });
   it("keeps edits when offline, reports it without leaking content, and catches up later", async () => {
     const d = makeDevice(backend);
@@ -434,7 +434,7 @@ describe("sync self-test", () => {
     const res = await runSelfTest({ col: d.col, sync: d.sync, data: d.data });
     expect(res.pass).toBe(false);
     expect(res.mismatches).toContain("times.Code");
-    expect(res.mismatches).toContain("times.Formula");
+    expect(res.mismatches).toContain("duration.Code");
     expect(res.mismatches.join(" ")).not.toMatch(/007|1\+1/); // names only, never values
   });
   it("is reported as not passing if the connection is down", async () => {

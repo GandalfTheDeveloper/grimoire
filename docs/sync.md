@@ -30,7 +30,7 @@ Reply per item: `{ acked, rejected, stale, records, cursor, more, resetCursor, b
 
 ## Limits and gotchas
 - **45,000 characters per record cell.** A Vault record's `Payload` is base64, so about 33,000 characters of plain text per record (roughly 5,000 words). The **Journal build must split long entries** (or store them as files). Decide at Journal planning.
-- A formula-looking value (`=1+1`) is expected to stay text because the cell is plain text first. This is proven in the simulator and by the in-app sync test on the real Sheet; **if the real test reports `Formula`, tell Claude, because it means Sheets treats `setValues` strings differently than expected.**
+- **Found on the real Sheet (2026-11-15):** even in a plain-text cell, a value starting with `=` is evaluated as a formula and a leading apostrophe is swallowed. Times, dates, leading zeros and plain text were fine. Fix (backend 0.2.1): every text cell starting with `=` or `'` is written with Sheets' own "treat as text" apostrophe in front, which Sheets does not store. The in-app sync test covers both cases; a simulator that mimics this behavior is in `tests/sim/sheetsSim.js`.
 - Seconds are dropped when repairing a converted 1899 time. Only matters for a column that was not text, which Grimoire never creates.
 - Apps Script web apps are slow on a cold start (1 to 3 seconds). Nothing waits for them; sync is background.
 - Apps Script allows one `doGet`/`doPost` per project. The old Shrexy ones are renamed `legacyDoGet`/`legacyDoPost` during setup, and the old deployment keeps serving its saved version. **Never use Edit, New version on the old Shrexy deployment.**

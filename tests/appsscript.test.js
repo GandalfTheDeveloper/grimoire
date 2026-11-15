@@ -16,7 +16,7 @@ const first = (r) => r.items[0];
 describe("access", () => {
   it("answers GET with only the version", () => {
     const out = JSON.parse(b.run("doGet")({}).getContent());
-    expect(out).toEqual({ ok: true, app: "grimoire", version: "0.2.0" });
+    expect(out).toEqual({ ok: true, app: "grimoire", version: "0.2.1" });
   });
   it("rejects a wrong key and a missing key, and never touches the Sheet", () => {
     expect(b.post({ key: "nope", action: "ping" }).error).toBe("auth");
@@ -38,7 +38,7 @@ describe("access", () => {
   it("ping works and reports the version", () => {
     const r = b.post({ key: KEY, action: "ping" });
     expect(r.ok).toBe(true);
-    expect(r.version).toBe("0.2.0");
+    expect(r.version).toBe("0.2.1");
   });
 });
 
@@ -147,6 +147,28 @@ describe("date, time and number corruption", () => {
     sh.getRange(2, 7, 1, 1).setValues([["007"]]);
     const back = b.post({ key: KEY, action: "readback", app: "selftest", coll: "items", ids: ["aaaaaaaa1"] });
     expect(back.records[0].cols.Label).toBe("7"); // this is why columns are written as text from the start
+  });
+  it("keeps text that starts with = or an apostrophe exactly as sent (real Sheets evaluates = and swallows ')", () => {
+    const vals = ["=1+1", "'quoted", "''two", "=", "'", "+5", "-3", "@x", " =lead"];
+    sync(item(vals.map((v, i) => rec(`aaaaaaaa${i}`, i + 1, { Label: v }))));
+    const back = b.post({ key: KEY, action: "readback", app: "selftest", coll: "items", ids: vals.map((_, i) => `aaaaaaaa${i}`) });
+    const got = vals.map((_, i) => back.records.find((r) => r.id === `aaaaaaaa${i}`).cols.Label);
+    expect(got).toEqual(vals);
+  });
+  it("does not corrupt such values in columns an update did not mention", () => {
+    sync({ ...item([rec("aaaaaaaa1", 1, { Label: "=1+1", Clock: "'k" })]), fields: FIELDS });
+    sync({ ...item([rec("aaaaaaaa1", 2, { Label: "=1+1", Clock: "'k" })]), fields: FIELDS });
+    // a later request that only knows about Label still rewrites the row; Clock must survive
+    const r = { ...rec("aaaaaaaa1", 3, { Label: "=changed" }) };
+    delete r.cols.Clock;
+    sync({ ...item([r]), fields: ["Label"] });
+    const back = b.post({ key: KEY, action: "readback", app: "selftest", coll: "items", ids: ["aaaaaaaa1"] });
+    expect(back.records[0].cols).toEqual({ Label: "=changed", Clock: "'k" });
+  });
+  it("never escapes numeric envelope columns or ordinary text", () => {
+    sync(item([rec("aaaaaaaa1", 5, { Label: "plain" })]));
+    const row = b.rows("selftest_items")[0];
+    expect(row).toMatchObject({ Id: "aaaaaaaa1", UpdatedAt: 5, Label: "plain" });
   });
   it("normalizes dates with and without a time of day", () => {
     const n = b.run("grimNormalize_");

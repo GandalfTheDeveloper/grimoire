@@ -194,7 +194,7 @@ describe("connection settings", () => {
     fireEvent.change(screen.getByTestId("conn-url"), { target: { value: URL_ } });
     fireEvent.change(screen.getByTestId("conn-key"), { target: { value: "K".repeat(48) } });
     fireEvent.click(screen.getByTestId("conn-test"));
-    await waitFor(() => expect(screen.getByTestId("conn-msg").textContent).toMatch(/Connected. Backend version 0\.2\.0/));
+    await waitFor(() => expect(screen.getByTestId("conn-msg").textContent).toMatch(/Connected. Backend version 0\.2\.1/));
     fireEvent.change(screen.getByTestId("conn-key"), { target: { value: "W".repeat(48) } });
     fireEvent.click(screen.getByTestId("conn-test"));
     await waitFor(() => expect(screen.getByTestId("conn-msg").textContent).toMatch(/Not connected: The key was rejected/));

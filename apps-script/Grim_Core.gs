@@ -210,6 +210,20 @@ function grimSyncItem_(ss, handler, item, now, beacon) {
   return { acked: acked, rejected: rejected, stale: stale, records: outRecords, cursor: cursor, more: more, resetCursor: resetCursor, batchTime: batchTime };
 }
 
+// Sheets treats a leading = as a formula and swallows a leading apostrophe, even in a plain-text cell.
+// A leading apostrophe is Sheets' own "this is text" marker and is not stored, so adding one in front of
+// such values keeps them exactly as the app sent them. Applied to every text cell at the moment of writing,
+// including cells of columns this request did not touch (they were read back as plain text).
+function grimTextCell_(v) {
+  if (typeof v !== "string" || v === "") return v;
+  const c = v.charAt(0);
+  return c === "=" || c === "'" ? "'" + v : v;
+}
+
+function grimProtectRow_(row, headers) {
+  return row.map(function (v, i) { return GRIM_NUMERIC.indexOf(headers[i]) >= 0 ? v : grimTextCell_(v); });
+}
+
 // Writes only the rows that changed. Neighbouring changed rows go out as one block; new rows as one block.
 function grimWriteChanged_(sh, headers, rows, dirtyRows, appended) {
   const ncols = headers.length;
@@ -218,7 +232,7 @@ function grimWriteChanged_(sh, headers, rows, dirtyRows, appended) {
   while (i < idx.length) {
     let j = i;
     while (j + 1 < idx.length && idx[j + 1] === idx[j] + 1) j++;
-    const block = idx.slice(i, j + 1).map(function (k) { return rows[k]; });
+    const block = idx.slice(i, j + 1).map(function (k) { return grimProtectRow_(rows[k], headers); });
     sh.getRange(idx[i] + 2, 1, block.length, ncols).setValues(block);
     i = j + 1;
   }
@@ -229,7 +243,7 @@ function grimWriteChanged_(sh, headers, rows, dirtyRows, appended) {
     const range = sh.getRange(firstRow, 1, appended.length, ncols);
     const formats = appended.map(function () { return headers.map(function (h) { return grimColFormat_(h); }); });
     range.setNumberFormats(formats); // text first, then values, so nothing gets converted
-    range.setValues(appended.map(function (k) { return rows[k]; }));
+    range.setValues(appended.map(function (k) { return grimProtectRow_(rows[k], headers); }));
   }
 }
 
