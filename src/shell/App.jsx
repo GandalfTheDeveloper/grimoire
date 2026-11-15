@@ -4,7 +4,8 @@ import { slate, themeStyle } from "../core/theme.js";
 import { go, useRoute } from "../core/useRoute.js";
 import { loadAppsOnDevice, saveAppsOnDevice, loadOpenOnLaunch, saveOpenOnLaunch } from "../core/deviceSettings.js";
 import { requestPersistence } from "../core/storage.js";
-import { getApp } from "../apps/registry.js";
+import { getApp, APPS } from "../apps/registry.js";
+import { initCore, registerAppCollections, sync } from "../core/index.js";
 import TopBar from "./TopBar.jsx";
 import Home from "./Home.jsx";
 import Settings from "./Settings.jsx";
@@ -17,6 +18,19 @@ export default function App() {
   const [appIds, setAppIds] = useState(loadAppsOnDevice);
   const [openOnLaunch, setOpenOnLaunch] = useState(loadOpenOnLaunch);
   const launched = useRef(false);
+  const openRef = useRef(null);
+
+  // Sync runs here in the shell, so switching apps never interrupts it. Stops when the shell unmounts.
+  useEffect(() => {
+    registerAppCollections(APPS);
+    let cancelled = false;
+    initCore().then(() => { if (!cancelled) sync.start({ getOpenApp: () => openRef.current }); });
+    return () => { cancelled = true; sync.stop(); };
+  }, []);
+  useEffect(() => {
+    openRef.current = route.name === "app" ? route.id : null;
+    sync.setOpenApp(openRef.current);
+  }, [route]);
 
   // Open on launch: applied once, only when no route was given (a fresh open).
   useEffect(() => {

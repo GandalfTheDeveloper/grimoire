@@ -1,6 +1,7 @@
 import { APPS, appsForDevice } from "../apps/registry.js";
 import { deviceType } from "../core/device.js";
 import { go } from "../core/useRoute.js";
+import Connection from "./Connection.jsx";
 
 export default function Settings({ appIds, onAppIds, openOnLaunch, onOpenOnLaunch }) {
   const available = appsForDevice(deviceType());
@@ -27,6 +28,7 @@ export default function Settings({ appIds, onAppIds, openOnLaunch, onOpenOnLaunc
         ))}
       </div>
       <p className="gr-note">Only these apps sync down to this device. Everything is always backed up in the Sheet.</p>
+      <Connection />
       <button className="gr-link" data-testid="open-diagnostics" onClick={() => go("/diagnostics")}>Diagnostics</button>
     </div>
   );

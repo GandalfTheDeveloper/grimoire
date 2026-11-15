@@ -30,3 +30,13 @@
 .gr-kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; padding: 14px; font-size: 14px; }
 .gr-kv dt { color: var(--sub); } .gr-kv dd { margin: 0; text-align: right; word-break: break-word; }
 .gr-note { color: var(--sub); font-size: 14px; line-height: 1.5; padding: 4px 2px; }
+.gr-field { display: block; padding: 12px 14px; border-bottom: 1px solid var(--line); font-size: 15px; }
+.gr-field > span { display: block; color: var(--sub); font-size: 12px; margin-bottom: 6px; }
+.gr-field input { width: 100%; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; font: inherit; font-size: 14px; }
+.gr-inline { display: flex; align-items: center; gap: 4px; }
+.gr-actions { display: flex; gap: 8px; flex-wrap: wrap; padding: 12px 14px; }
+.gr-btn { padding: 9px 14px; border-radius: 10px; border: 1px solid var(--line) !important; background: var(--bg) !important; font-size: 14px; }
+.gr-btn.primary { background: var(--card-hover) !important; font-weight: 600; }
+.gr-btn:disabled, .gr-iconbtn:disabled { opacity: .45; }
+.gr-btn:active { background: var(--card-hover) !important; }
+.gr-pass { color: var(--ok); } .gr-fail { color: var(--warn); }

@@ -1,18 +1,24 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, fireEvent, cleanup, act, waitFor } from "@testing-library/react";
 import App from "../src/shell/App.jsx";
-import { setSyncStatus } from "../src/core/syncStatus.js";
+import { setSyncStatus, getSyncStatus } from "../src/core/syncStatus.js";
+import { sync, data, selftestCol } from "../src/core/index.js";
+import { createBackend } from "./sim/sheetsSim.js";
 import { APPS } from "../src/apps/registry.js";
 
 const setWidth = (w) => { Object.defineProperty(window, "innerWidth", { value: w, configurable: true }); };
 
+let startSpy;
 beforeEach(() => {
+  // Sync has its own tests (tests/sync.test.js). Here the shell just must not run it in the background.
+  startSpy = vi.spyOn(sync, "start").mockImplementation(() => {});
   cleanup();
   window.localStorage.clear();
   window.location.hash = "";
-  setSyncStatus({ pending: 0, lastSync: null, errors: [] });
+  setSyncStatus({ pending: 0, lastSync: null, errors: [], configured: false, lastError: null, backendVersion: null });
   setWidth(390);
 });
+afterEach(() => { vi.restoreAllMocks(); });
 
 describe("home screen", () => {
   it("shows a tile for every app on a phone, plus a visible build number", () => {
@@ -77,8 +83,8 @@ describe("settings", () => {
     for (const k of keys) expect(k.startsWith("grimoire:")).toBe(true);
   });
   it("diagnostics shows build, pending count, and no personal content", async () => {
-    act(() => setSyncStatus({ pending: 2 }));
     render(<App />);
+    act(() => setSyncStatus({ pending: 2 }));
     fireEvent.click(screen.getByTestId("open-settings"));
     fireEvent.click(await screen.findByTestId("open-diagnostics"));
     const t = (await screen.findByTestId("diagnostics")).textContent;
@@ -125,5 +131,101 @@ describe("updates", () => {
   it("shows the update banner only when a new version is waiting", async () => {
     render(<App />);
     expect(screen.queryByTestId("update-banner")).toBeNull();
+  });
+});
+
+describe("sync wiring", () => {
+  it("starts the sync engine when the shell mounts and stops it when it closes", async () => {
+    const stop = vi.spyOn(sync, "stop");
+    const { unmount } = render(<App />);
+    await waitFor(() => expect(startSpy).toHaveBeenCalledTimes(1));
+    unmount();
+    expect(stop).toHaveBeenCalled();
+  });
+  it("tells the engine which app is open", async () => {
+    const setOpen = vi.spyOn(sync, "setOpenApp");
+    window.location.hash = "#/app/fitness";
+    render(<App />);
+    await waitFor(() => expect(setOpen).toHaveBeenCalledWith("fitness"));
+    fireEvent.click(await screen.findByTestId("back"));
+    await waitFor(() => expect(setOpen).toHaveBeenLastCalledWith(null));
+  });
+});
+
+describe("connection settings", () => {
+  const URL_ = "https://script.google.com/macros/s/TESTID/exec";
+  const open = async () => { render(<App />); fireEvent.click(screen.getByTestId("open-settings")); await screen.findByTestId("connection"); };
+  it("saves the address and key on this device under grimoire:sync:*, and hides the key by default", async () => {
+    await open();
+    expect(screen.getByTestId("conn-key").getAttribute("type")).toBe("password");
+    fireEvent.change(screen.getByTestId("conn-url"), { target: { value: URL_ } });
+    fireEvent.change(screen.getByTestId("conn-key"), { target: { value: "K".repeat(48) } });
+    fireEvent.click(screen.getByTestId("conn-save"));
+    expect(screen.getByTestId("conn-msg").textContent).toMatch(/Saved/);
+    expect(JSON.parse(window.localStorage.getItem("grimoire:sync:config"))).toEqual({ url: URL_, key: "K".repeat(48) });
+    expect(getSyncStatus().configured).toBe(true);
+    fireEvent.click(screen.getByTestId("conn-show"));
+    expect(screen.getByTestId("conn-key").getAttribute("type")).toBe("text");
+  });
+  it("refuses an address that isn't a script address, and a short key", async () => {
+    await open();
+    fireEvent.change(screen.getByTestId("conn-url"), { target: { value: "https://example.com" } });
+    fireEvent.click(screen.getByTestId("conn-save"));
+    expect(screen.getByTestId("conn-msg").textContent).toMatch(/script address/);
+    expect(window.localStorage.getItem("grimoire:sync:config")).toBeNull();
+    fireEvent.change(screen.getByTestId("conn-url"), { target: { value: URL_ } });
+    fireEvent.change(screen.getByTestId("conn-key"), { target: { value: "short" } });
+    fireEvent.click(screen.getByTestId("conn-save"));
+    expect(screen.getByTestId("conn-msg").textContent).toMatch(/at least 32/);
+  });
+  it("Generate key fills in 48 random characters without saving them", async () => {
+    await open();
+    fireEvent.click(screen.getByTestId("conn-generate"));
+    const k = screen.getByTestId("conn-key").value;
+    expect(k).toMatch(/^[A-Za-z0-9]{48}$/);
+    expect(window.localStorage.getItem("grimoire:sync:config")).toBeNull();
+    fireEvent.click(screen.getByTestId("conn-generate"));
+    expect(screen.getByTestId("conn-key").value).not.toBe(k);
+  });
+  it("Save and test reports a connected backend, or a plain reason when it can't connect", async () => {
+    const b = createBackend({ key: "K".repeat(48) });
+    vi.stubGlobal("fetch", b.fetch);
+    await open();
+    fireEvent.change(screen.getByTestId("conn-url"), { target: { value: URL_ } });
+    fireEvent.change(screen.getByTestId("conn-key"), { target: { value: "K".repeat(48) } });
+    fireEvent.click(screen.getByTestId("conn-test"));
+    await waitFor(() => expect(screen.getByTestId("conn-msg").textContent).toMatch(/Connected. Backend version 0\.2\.0/));
+    fireEvent.change(screen.getByTestId("conn-key"), { target: { value: "W".repeat(48) } });
+    fireEvent.click(screen.getByTestId("conn-test"));
+    await waitFor(() => expect(screen.getByTestId("conn-msg").textContent).toMatch(/Not connected: The key was rejected/));
+    b.offline = true;
+    fireEvent.change(screen.getByTestId("conn-key"), { target: { value: "K".repeat(48) } });
+    fireEvent.click(screen.getByTestId("conn-test"));
+    await waitFor(() => expect(screen.getByTestId("conn-msg").textContent).toMatch(/No connection to the Sheet/));
+    vi.unstubAllGlobals();
+  });
+});
+
+describe("diagnostics tools", () => {
+  const goDiag = async () => { render(<App />); fireEvent.click(screen.getByTestId("open-settings")); fireEvent.click(await screen.findByTestId("open-diagnostics")); await screen.findByTestId("diagnostics"); };
+  it("explains plainly when there is no connection yet instead of running a test", async () => {
+    await goDiag();
+    fireEvent.click(screen.getByTestId("diag-test"));
+    await waitFor(() => expect(screen.getByTestId("diag-result").textContent).toMatch(/Not connected yet/));
+  });
+  it("runs the sync test against a Sheet, shows pass, and clears the test rows", async () => {
+    const b = createBackend({ key: "K".repeat(48) });
+    vi.stubGlobal("fetch", b.fetch);
+    window.localStorage.setItem("grimoire:sync:config", JSON.stringify({ url: "https://script.google.com/macros/s/TESTID/exec", key: "K".repeat(48) }));
+    await goDiag();
+    setSyncStatus({ configured: true });
+    fireEvent.click(screen.getByTestId("diag-test"));
+    await waitFor(() => expect(screen.getByTestId("diag-result").textContent).toMatch(/Sync test passed \(21 values/), { timeout: 4000 });
+    expect(b.rows("selftest_items")).toHaveLength(3);
+    fireEvent.click(screen.getByTestId("diag-clear"));
+    await waitFor(() => expect(screen.getByTestId("diag-result").textContent).toMatch(/Cleared 3 test records/), { timeout: 4000 });
+    expect(await selftestCol.list()).toHaveLength(0);
+    expect(data.pendingCount()).toBe(0);
+    vi.unstubAllGlobals();
   });
 });
