@@ -24,3 +24,6 @@
 
 ## Round 3 additions
 Vault gate in the app frame (setup or unlock before a Vault app opens; tablet relocks on leaving), Vault card in Settings, lock button in the top bar, real lock icon on tiles, usage banner, extra Diagnostics rows and tools.
+
+## Phase 2 additions
+Fitness is the first real app in the frame (`src/apps/fitness/`). It keeps its own theme variables in `meta.js`, fills the frame with `flex: 1`, and talks to the old Shrexy backend. See `docs/apps/fitness.md`. The Fitness placeholder tests became real opens of `fitness-root`.

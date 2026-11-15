@@ -12,6 +12,14 @@
 | Unlock fix and diagnosis | 0.3.1 | 0.3.0 |
 | Start over for a lost passphrase | 0.3.2 | 0.3.0 |
 | Round 4: re-key, recovery drill, photo test, procedures | 0.4.0 | 0.3.0 |
+| Phase 2: Fitness nested | 0.5.0 | 0.3.0 |
+
+## App 0.5.0 (backend unchanged at 0.3.0) — Phase 2
+- **Fitness (Super Shrexy Tracker) is now inside Grimoire.** Minimal changes only: on-device keys prefixed `grimoire:fitness:`, timers/wake lock/listeners stop when you leave, full-height inside Grimoire's frame, old title header became a sub-header (the full-screen button lives in Grimoire's top bar). Details: `docs/apps/fitness.md`.
+- Fitness still uses the **old Shrexy Apps Script URL and key**, entered once in Fitness's own gear on each device, so it reads and writes the same Sheet as old Shrexy. No Apps Script change.
+- Added: last-chance send of unsent edits when Fitness is hidden or closed (safe to repeat).
+- Tests: 11 new Fitness tests against a simulated old Shrexy backend (data matches the Sheet, save reaches the Sheet with the old action names, storage prefixed and old keys untouched, nothing left running after close, wake lock released, offline edit survives leaving, no duplicate rows), mutation-checked; the production-bundle check now opens Fitness. Tablet and shell tests updated (Fitness opens for real instead of showing the placeholder).
+- Docs: `docs/apps/fitness.md` (new), `docs/device-tests.md` section F (Phase 2 checks).
 
 ## App 0.4.0 (backend unchanged at 0.3.0) — Phase 1, Round 4
 - **Re-key** (Settings, The Vault, Lost a device? Re-key): new random data key, every encrypted record re-encrypted, every file key re-wrapped (Drive bytes untouched), new key record. Backs up the Sheet first, test-decrypts everything in memory before storing anything, stores it in one all-or-nothing local write, then reads it all back from the Sheet. Optional new passphrase in the same step. Other devices lock and ask for the passphrase.

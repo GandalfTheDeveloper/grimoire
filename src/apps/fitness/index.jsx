@@ -1,7 +1,7 @@
-import Placeholder from "../../shell/Placeholder.jsx";
-import { app } from "./meta.js";
+import WorkoutTracker from "./WorkoutTracker.jsx";
 
-// Empty app slot. The real app replaces this file when its build round happens.
+// Super Shrexy Tracker, nested (Phase 2). Closing the app unmounts this, which stops its timers,
+// polling, wake lock and listeners. Notes on the minimal changes: docs/apps/fitness.md.
 export default function App() {
-  return <Placeholder app={app} />;
+  return <WorkoutTracker />;
 }

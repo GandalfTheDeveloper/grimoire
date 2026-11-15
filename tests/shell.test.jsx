@@ -30,11 +30,11 @@ describe("home screen", () => {
   it("opens an app, then goes back home", async () => {
     render(<App />);
     fireEvent.click(screen.getByTestId("tile-fitness"));
-    await waitFor(() => expect(screen.getByTestId("placeholder-fitness")).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId("fitness-root")).toBeTruthy());
     expect(window.location.hash).toBe("#/app/fitness");
     fireEvent.click(screen.getByTestId("back"));
     await waitFor(() => expect(screen.getByTestId("home-grid")).toBeTruthy());
-    expect(screen.queryByTestId("placeholder-fitness")).toBeNull();
+    expect(screen.queryByTestId("fitness-root")).toBeNull();
   });
   it("unknown app id shows a friendly message", () => {
     window.location.hash = "#/app/nope";
@@ -102,12 +102,12 @@ describe("open on launch", () => {
   it("tablet default opens Fitness", async () => {
     setWidth(1000);
     render(<App />);
-    await waitFor(() => expect(screen.getByTestId("placeholder-fitness")).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId("fitness-root")).toBeTruthy());
   });
   it("tablet can reach the other apps from home via back", async () => {
     setWidth(1000);
     render(<App />);
-    await waitFor(() => expect(screen.getByTestId("placeholder-fitness")).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId("fitness-root")).toBeTruthy());
     fireEvent.click(screen.getByTestId("back"));
     await waitFor(() => expect(screen.getByTestId("tile-journal")).toBeTruthy());
   });
