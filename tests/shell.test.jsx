@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, fireEvent, cleanup, act, waitFor } from "@testing-library/react";
 import App from "../src/shell/App.jsx";
 import { setSyncStatus, getSyncStatus } from "../src/core/syncStatus.js";
-import { sync, data, selftestCol } from "../src/core/index.js";
+import { sync, data, selftestCol, usage } from "../src/core/index.js";
 import { createBackend } from "./sim/sheetsSim.js";
 import { APPS } from "../src/apps/registry.js";
 
@@ -111,9 +111,9 @@ describe("open on launch", () => {
     await waitFor(() => expect(screen.getByTestId("tile-journal")).toBeTruthy());
   });
   it("honours a saved choice, and falls back to home if that app is turned off", async () => {
-    window.localStorage.setItem("grimoire:shell:openOnLaunch", JSON.stringify("lists"));
+    window.localStorage.setItem("grimoire:shell:openOnLaunch", JSON.stringify("cookbook"));
     render(<App />);
-    await waitFor(() => expect(screen.getByTestId("placeholder-lists")).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId("placeholder-cookbook")).toBeTruthy());
     cleanup(); window.location.hash = "";
     window.localStorage.setItem("grimoire:shell:appsOnDevice", JSON.stringify(["fitness"]));
     render(<App />);
@@ -194,7 +194,7 @@ describe("connection settings", () => {
     fireEvent.change(screen.getByTestId("conn-url"), { target: { value: URL_ } });
     fireEvent.change(screen.getByTestId("conn-key"), { target: { value: "K".repeat(48) } });
     fireEvent.click(screen.getByTestId("conn-test"));
-    await waitFor(() => expect(screen.getByTestId("conn-msg").textContent).toMatch(/Connected. Backend version 0\.2\.1/));
+    await waitFor(() => expect(screen.getByTestId("conn-msg").textContent).toMatch(/Connected. Backend version 0\.3\.0/));
     fireEvent.change(screen.getByTestId("conn-key"), { target: { value: "W".repeat(48) } });
     fireEvent.click(screen.getByTestId("conn-test"));
     await waitFor(() => expect(screen.getByTestId("conn-msg").textContent).toMatch(/Not connected: The key was rejected/));
@@ -269,5 +269,76 @@ describe("full screen", () => {
     const m = JSON.parse((await import("node:fs")).readFileSync("public/manifest.webmanifest", "utf8"));
     expect(m.display_override).toEqual(["fullscreen", "standalone"]);
     expect(m.display).toBe("standalone");
+  });
+});
+
+describe("the Vault in the shell", () => {
+  it("a Vault app (Journal, Lists) shows setup instead of the app until the Vault exists; the tile has a lock", async () => {
+    render(<App />);
+    expect(screen.getByTestId("tile-journal").querySelector("svg[aria-label='In the Vault']")).toBeTruthy();
+    expect(screen.getByTestId("tile-cookbook").querySelector("svg[aria-label='In the Vault']")).toBeNull();
+    fireEvent.click(screen.getByTestId("tile-journal"));
+    expect(await screen.findByTestId("vault-gate-setup")).toBeTruthy();
+    expect(screen.queryByTestId("placeholder-journal")).toBeNull();
+  });
+  it("setup needs a long enough matching passphrase and the write-it-down box, and a connection", async () => {
+    window.location.hash = "#/app/journal";
+    render(<App />);
+    const btn = await screen.findByTestId("vault-create");
+    expect(btn.disabled).toBe(true);
+    fireEvent.change(screen.getByTestId("vault-pass1"), { target: { value: "short" } });
+    fireEvent.change(screen.getByTestId("vault-pass2"), { target: { value: "short" } });
+    fireEvent.click(screen.getByTestId("vault-wrote"));
+    expect(btn.disabled).toBe(true);
+    fireEvent.change(screen.getByTestId("vault-pass1"), { target: { value: "a long enough passphrase" } });
+    expect(await screen.findByText(/don't match/)).toBeTruthy();
+    fireEvent.change(screen.getByTestId("vault-pass2"), { target: { value: "a long enough passphrase" } });
+    expect(btn.disabled).toBe(false);
+    fireEvent.click(btn);
+    expect((await screen.findByTestId("vault-msg")).textContent).toMatch(/Connect to your Sheet first/);
+    expect(screen.queryByTestId("placeholder-journal")).toBeNull();
+  });
+  it("settings shows the Vault card with the passphrase warning and the per-device behaviour", async () => {
+    render(<App />);
+    fireEvent.click(screen.getByTestId("open-settings"));
+    const card = await screen.findByTestId("vault-card");
+    expect(card.textContent).toMatch(/Not set up yet/);
+    expect(card.textContent).toMatch(/cannot be recovered/);
+    expect(screen.getByText(/stays unlocked until you tap Lock now/)).toBeTruthy();
+  });
+});
+
+describe("warnings and new diagnostics rows", () => {
+  it("diagnostics lists the Vault state, files waiting, and Sheet/Drive size", async () => {
+    render(<App />);
+    fireEvent.click(screen.getByTestId("open-settings"));
+    fireEvent.click(await screen.findByTestId("open-diagnostics"));
+    const t = (await screen.findByTestId("diagnostics")).textContent;
+    expect(t).toMatch(/Vaultnot set up/); expect(t).toMatch(/Files waiting to upload0/);
+    expect(t).toMatch(/Sheet size(not checked yet|[\d,]+ of 10,000,000 cells)/); expect(t).toMatch(/Google storage(not checked yet|[\d.]+ GB of)/);
+  });
+  it("tools that need the connection say so plainly when there is none", async () => {
+    render(<App />);
+    fireEvent.click(screen.getByTestId("open-settings"));
+    fireEvent.click(await screen.findByTestId("open-diagnostics"));
+    for (const id of ["diag-vtest", "diag-ftest", "diag-backup", "diag-usage"]) {
+      fireEvent.click(await screen.findByTestId(id));
+      await waitFor(() => expect(screen.getByTestId("diag-result").textContent).toMatch(/Not connected yet/));
+    }
+  });
+  it("a usage warning shows as a banner on every screen, with Dismiss", async () => {
+    const b = createBackend({ key: "K".repeat(48) });
+    b.drive.used = 90; b.drive.limit = 100;
+    vi.stubGlobal("fetch", b.fetch);
+    window.localStorage.setItem("grimoire:sync:config", JSON.stringify({ url: "https://script.google.com/macros/s/X/exec", key: "K".repeat(48) }));
+    render(<App />);
+    expect(screen.queryByTestId("usage-banner")).toBeNull();
+    await act(async () => { await usage.check({ force: true }); });
+    expect((await screen.findByTestId("usage-banner")).textContent).toMatch(/90% full/);
+    fireEvent.click(screen.getByTestId("open-settings"));
+    expect(screen.getByTestId("usage-banner")).toBeTruthy();
+    fireEvent.click(screen.getByTestId("usage-dismiss"));
+    expect(screen.queryByTestId("usage-banner")).toBeNull();
+    vi.unstubAllGlobals();
   });
 });

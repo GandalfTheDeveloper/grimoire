@@ -21,3 +21,6 @@
 
 ## Open questions
 - Final Grimoire look and icon (custom images/design planned after the foundation).
+
+## Round 3 additions
+Vault gate in the app frame (setup or unlock before a Vault app opens; tablet relocks on leaving), Vault card in Settings, lock button in the top bar, real lock icon on tiles, usage banner, extra Diagnostics rows and tools.

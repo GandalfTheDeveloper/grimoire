@@ -42,7 +42,13 @@ export function createSync({
     const list = [`${clock(now())} ${message}`, ...getSyncStatus().errors].slice(0, 10);
     setSyncStatus({ errors: list });
   }
-  const refreshPending = () => setSyncStatus({ pending: data.pendingCount() });
+  let extraPending = () => 0; // things waiting that are not records (files not uploaded yet)
+  const afterSync = [];
+  const pageApplied = []; // run after each page of results is applied (the Vault re-reads which apps are encrypted)
+  // Which collections this device is actively reading. If a page of results changes it (an app was moved
+  // into the Vault on another device), another round runs at once so the app does not open empty.
+  const activeSig = () => data.collections().filter((d) => d.isActive()).map((d) => `${d.app}|${d.name}`).join(",");
+  const refreshPending = () => setSyncStatus({ pending: data.pendingCount() + extraPending() });
 
   function recPayload(r) {
     return { id: r.id, createdAt: r.createdAt, updatedAt: r.updatedAt, deleted: r.deleted ? 1 : 0, schemaVersion: r.schemaVersion, cols: r.cols };
@@ -88,7 +94,10 @@ export function createSync({
     const items = [];
     const dirtyAll = await db.dirty();
     for (const def of data.collections()) {
-      const pullHere = scope === "all" ? apps.includes(def.app) || def.app === "core" : def.app === openApp;
+      // Only pull the side an app is really using (readable or encrypted). Edits waiting to go up are
+      // always sent, whichever side they are on, so a migration's new copy uploads while the app is frozen.
+      const wanted = scope === "all" ? apps.includes(def.app) || def.app === "core" : def.app === openApp;
+      const pullHere = wanted && def.isActive();
       const dirty = dirtyAll.filter((r) => r.app === def.app && r.coll === def.name);
       if (!pullHere && dirty.length === 0) continue;
       const since = await db.getMeta(cursorKey(def.app, def.name), 0);
@@ -130,6 +139,7 @@ export function createSync({
     if (!cfg || !cfg.url || !cfg.key) { refreshPending(); return; }
     let pages = 0;
     for (;;) {
+      const sigBefore = activeSig();
       const items = await buildItems(scope);
       if (!items.length) break;
       const json = await call({ action: "sync", items: items.map(({ _full, ...rest }) => rest) });
@@ -140,12 +150,19 @@ export function createSync({
         if (items[i]._full && !res.error) again2 = true;
       }
       setSyncStatus({ backendVersion: json.version || null });
+      for (const fn of pageApplied) await fn();
+      if (activeSig() !== sigBefore) again2 = true;
       refreshPending();
       pages += 1;
       if (!again2 || pages >= MAX_PAGES) break;
     }
     failures = 0;
     setSyncStatus({ lastSync: now(), lastError: null });
+    refreshPending();
+    // files waiting to upload go up after the records. A failure here is reported but does not fail the sync.
+    for (const fn of afterSync) {
+      try { await fn(); } catch (e) { pushError(e && e.message ? e.message : "Upload problem"); }
+    }
     refreshPending();
   }
 
@@ -273,6 +290,10 @@ export function createSync({
   return {
     start, stop, syncNow, request, flushBeacon, call,
     setOpenApp(id) { openApp = id; },
+    setExtraPending(fn) { extraPending = fn; refreshPending(); },
+    onAfterSync(fn) { afterSync.push(fn); },
+    onPageApplied(fn) { pageApplied.push(fn); },
+    refreshPending,
     tabName,
   };
 }

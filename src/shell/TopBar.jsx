@@ -1,4 +1,5 @@
-import { ArrowLeft, Maximize2, Minimize2, Settings as Gear } from "lucide-react";
+import { ArrowLeft, Lock, Maximize2, Minimize2, Settings as Gear } from "lucide-react";
+import { vault } from "../core/index.js";
 import { useFullscreen } from "../core/fullscreen.js";
 import { useSyncExternalStore } from "react";
 import { getSyncStatus, subscribeSync } from "../core/syncStatus.js";
@@ -20,7 +21,7 @@ export function StatusDot() {
   );
 }
 
-export default function TopBar({ title, onBack, showSettings }) {
+export default function TopBar({ title, onBack, showSettings, lockable }) {
   const fs = useFullscreen();
   return (
     <header className="gr-top" data-testid="topbar">
@@ -31,6 +32,11 @@ export default function TopBar({ title, onBack, showSettings }) {
       )}
       <div className="gr-title">{title}</div>
       <StatusDot />
+      {lockable && (
+        <button className="gr-iconbtn" aria-label="Lock the Vault now" data-testid="lock-now" onClick={() => vault.lock()}>
+          <Lock size={20} />
+        </button>
+      )}
       {fs.supported && (
         <button className="gr-iconbtn" aria-label={fs.on ? "Exit full screen" : "Full screen"} data-testid="fullscreen" onClick={fs.toggle}>
           {fs.on ? <Minimize2 size={20} /> : <Maximize2 size={20} />}

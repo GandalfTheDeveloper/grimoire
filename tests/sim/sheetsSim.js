@@ -9,7 +9,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), "../../apps-script");
-export const GS_FILES = ["Grim_Router.gs", "Grim_Core.gs", "Grim_App_selftest.gs"];
+export const GS_FILES = ["Grim_Router.gs", "Grim_Core.gs", "Grim_Files.gs", "Grim_Backup.gs", "Grim_App_core.gs", "Grim_App_selftest.gs"];
 
 const EPOCH_1899 = Date.UTC(1899, 11, 30);
 
@@ -60,12 +60,52 @@ class Sheet {
   }
 }
 
+// ---- a small simulated Google Drive: folders, files (as bytes), the bin, creation order, storage numbers ----
+function createDrive() {
+  let n = 0;
+  const drive = { files: new Map(), folders: new Map(), clock: 1000, used: 1000, limit: 15 * 1024 ** 3 };
+  const iter = (arr) => { let i = 0; return { hasNext: () => i < arr.length, next: () => arr[i++] }; };
+  class SimFile {
+    constructor(name, bytes, mime, parent) { this.id = `file${++n}`; this.name = name; this.bytes = bytes; this.mime = mime; this.parent = parent; this.trashed = false; this.created = ++drive.clock; drive.files.set(this.id, this); }
+    getId() { return this.id; } getName() { return this.name; } setTrashed(v) { this.trashed = !!v; return this; } isTrashed() { return this.trashed; }
+    getDateCreated() { return new Date(this.created); }
+    getBlob() { return { getBytes: () => this.bytes.slice() }; }
+    makeCopy(name, folder) { const f = new SimFile(name, this.bytes.slice(), this.mime, folder || this.parent); (folder || this.parent).kids.push(f); return f; }
+  }
+  class SimFolder {
+    constructor(name) { this.id = `folder${++n}`; this.name = name; this.trashed = false; this.kids = []; this.subs = []; drive.folders.set(this.id, this); }
+    getId() { return this.id; } isTrashed() { return this.trashed; }
+    createFile(blob) { const f = new SimFile(blob.name, blob.bytes.slice(), blob.mime, this); this.kids.push(f); return f; }
+    createFolder(name) { const f = new SimFolder(name); this.subs.push(f); return f; }
+    getFilesByName(nm) { return iter(this.kids.filter((f) => !f.trashed && f.name === nm)); }
+    getFoldersByName(nm) { return iter(this.subs.filter((f) => !f.trashed && f.name === nm)); }
+    getFiles() { return iter(this.kids.filter((f) => !f.trashed)); }
+  }
+  const root = new SimFolder("My Drive");
+  drive.root = root;
+  drive.SimFile = SimFile;
+  drive.api = {
+    getRootFolder: () => root,
+    createFolder: (name) => root.createFolder(name),
+    getFolderById(id) { const f = drive.folders.get(id); if (!f) throw new Error("not found"); return f; },
+    getFileById(id) { const f = drive.files.get(id); if (!f) throw new Error("not found"); return f; },
+    getStorageUsed: () => drive.used,
+    getStorageLimit: () => drive.limit,
+  };
+  return drive;
+}
+
 export function createBackend({ key = "K".repeat(48), opts = {}, tz = "UTC" } = {}) {
   const stats = { setValuesCalls: 0, rowsWritten: 0, requests: 0 };
   const sheets = new Map();
   const props = { GRIMOIRE_KEY: key };
   const lock = { held: false };
+  const drive = createDrive();
+  const sheetFile = new drive.SimFile("Grimoire data", [1, 2, 3], "application/vnd.google-apps.spreadsheet", drive.root);
+  const triggers = [];
   const ss = {
+    getId: () => sheetFile.id,
+    getSheets: () => [...sheets.values()],
     getSheetByName: (n) => sheets.get(n) || null,
     insertSheet(n) { const s = new Sheet(n, stats, opts); sheets.set(n, s); return s; },
     getSpreadsheetTimeZone: () => tz,
@@ -74,15 +114,32 @@ export function createBackend({ key = "K".repeat(48), opts = {}, tz = "UTC" } = 
   const sandbox = {
     console: { log() {}, error() {} },
     SpreadsheetApp: { getActiveSpreadsheet: () => ss, openById: () => ss, flush() {} },
-    PropertiesService: { getScriptProperties: () => ({ getProperty: (k) => (k in props ? props[k] : null) }) },
+    PropertiesService: { getScriptProperties: () => ({ getProperty: (k) => (k in props ? props[k] : null), setProperty: (k, v) => { props[k] = String(v); } }) },
     LockService: { getScriptLock: () => ({ tryLock() { if (lock.held) return false; lock.held = true; return true; }, releaseLock() { lock.held = false; } }) },
     ContentService: { createTextOutput: out, MimeType: { JSON: "json" } },
+    DriveApp: drive.api,
+    ScriptApp: {
+      WeekDay: { SUNDAY: "SUNDAY" },
+      getProjectTriggers: () => triggers.map((t) => ({ getHandlerFunction: () => t.fn, _t: t })),
+      deleteTrigger(h) { const i = triggers.indexOf(h._t); if (i >= 0) triggers.splice(i, 1); },
+      newTrigger(fn) {
+        const t = { fn };
+        const b = { timeBased: () => b, onWeekDay: (d) => { t.day = d; return b; }, atHour: (h) => { t.hour = h; return b; }, create() { triggers.push(t); return t; } };
+        return b;
+      },
+    },
     Utilities: {
       formatDate(d, _tz, fmt) {
         const p = (n, w = 2) => String(n).padStart(w, "0");
-        if (fmt !== "yyyy-MM-dd HH:mm:ss") throw new Error("sim supports one format");
-        return `${p(d.getUTCFullYear(), 4)}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())}`;
+        const date = `${p(d.getUTCFullYear(), 4)}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())}`;
+        if (fmt === "yyyy-MM-dd HH:mm:ss") return `${date} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())}`;
+        if (fmt === "yyyy-MM-dd HH:mm") return `${date} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`;
+        throw new Error("sim does not support this date format");
       },
+      // Apps Script hands back bytes as an array of signed numbers; the sim does the same.
+      base64Decode: (t) => Array.from(Buffer.from(String(t), "base64")).map((b) => (b > 127 ? b - 256 : b)),
+      base64Encode: (bytes) => Buffer.from(Array.from(bytes).map((b) => b & 255)).toString("base64"),
+      newBlob: (bytes, mime, name) => ({ bytes: Array.from(bytes).map((b) => (b < 0 ? b + 256 : b)), mime, name }),
     },
   };
   const ctx = vm.createContext(sandbox);
@@ -96,7 +153,7 @@ export function createBackend({ key = "K".repeat(48), opts = {}, tz = "UTC" } = 
   }
   // fetch-compatible function for the client. backend.offline = true simulates no network.
   const backend = {
-    ss, sheets, stats, props, lock, ctx, run, post, offline: false, latency: null, beforeRespond: null,
+    ss, sheets, stats, props, lock, ctx, run, post, drive, triggers, offline: false, latency: null, beforeRespond: null,
     fetch: async (url, init) => {
       if (backend.offline) throw new TypeError("Failed to fetch");
       if (backend.latency) await backend.latency();

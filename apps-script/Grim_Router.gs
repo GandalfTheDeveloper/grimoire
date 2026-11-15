@@ -2,10 +2,11 @@
 // Everything here is prefixed grim / GRIM_ so it cannot collide with the old Shrexy script in the same project.
 // The key lives in Script Properties (GRIMOIRE_KEY), never in this file, and arrives in the request body.
 
-const GRIM_VERSION = "0.2.1";
+const GRIM_VERSION = "0.3.0";
 
 // One line per app. Add a new app = add its handler file + one line here, then deploy a new version.
 const GRIM_HANDLERS = {
+  core: function () { return grimApp_core_(); },
   selftest: function () { return grimApp_selftest_(); },
 };
 
@@ -28,6 +29,12 @@ function doPost(e) {
 
     if (body.action === "ping") return grimOut_({ ok: true, version: GRIM_VERSION, serverTime: Date.now() });
     if (body.action === "sync" || body.action === "readback") return grimWithLock_(function () { return grimRoute_(body); });
+    // Files (Drive), backup and usage. Drive work is under the same lock so two devices never race on folders.
+    if (body.action === "fileput") return grimWithLock_(function () { return grimOut_(grimFilePut_(body)); });
+    if (body.action === "fileget") return grimWithLock_(function () { return grimOut_(grimFileGet_(body)); });
+    if (body.action === "filedelete") return grimWithLock_(function () { return grimOut_(grimFileDelete_(body)); });
+    if (body.action === "backup") return grimWithLock_(function () { return grimOut_(grimBackupNow_()); });
+    if (body.action === "usage") return grimOut_(grimUsage_());
     return grimOut_({ ok: false, error: "bad_request" });
   } catch (err) {
     console.error("grim error: " + (err && err.message)); // message only, never the request body

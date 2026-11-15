@@ -42,3 +42,7 @@
 .gr-pass { color: var(--ok); } .gr-fail { color: var(--warn); }
 /* when the banner is showing it already clears the status bar, so the top bar under it does not add that gap twice */
 .gr-banner + .gr-top { padding-top: 10px; }
+.gr-field textarea, .gr-field select { width: 100%; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; font: inherit; font-size: 14px; }
+.gr-actions input[type="file"] { font-size: 13px; color: var(--sub); max-width: 100%; }
+.gr-btn svg { vertical-align: -2px; }
+.gr-banner + .gr-banner { padding-top: 10px; }

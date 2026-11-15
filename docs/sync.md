@@ -49,3 +49,6 @@ Reply per item: `{ acked, rejected, stale, records, cursor, more, resetCursor, b
 ## Proposed charter amendment (needs Isaac's OK, then update the project copy and `docs/charter.md` together)
 - Section 4, "Record format (every app)": replace the first line with: `Id, CreatedAt, UpdatedAt, SyncedAt, Deleted, SchemaVersion`, then app fields. Add: "`SyncedAt` is stamped by the Sheet script when it receives a record and is used only to decide what a device still needs to download. The Apps Script reads the envelope columns Id, UpdatedAt, SyncedAt, Deleted and SchemaVersion."
 - Section 11, Decision log: "2026-11-15: Added SyncedAt to the record envelope so incremental download never misses late-arriving offline edits."
+
+## Round 3 additions
+Every collection has a plain and an `enc` twin; only the active side is pulled, dirty records are always sent, and the engine re-runs a round when the active set changes. Hooks: `onPageApplied`, `onAfterSync`, `setExtraPending`. See `docs/vault.md` and `docs/files.md`.

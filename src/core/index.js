@@ -4,21 +4,39 @@ import { createData } from "./data.js";
 import { createSync } from "./sync.js";
 import { loadSyncConfig, getDeviceId } from "./syncConfig.js";
 import { loadAppsOnDevice } from "./deviceSettings.js";
-import { defineSelftest } from "./selftest.js";
+import { APPS } from "../apps/registry.js";
 import { setSyncStatus } from "./syncStatus.js";
+import { deviceType } from "./device.js";
+import { createVault } from "./vault.js";
+import { createCollections } from "./vaultData.js";
+import { createFiles } from "./files.js";
+import { createMigration } from "./vaultMigrate.js";
+import { createUsage } from "./usage.js";
+import { shrinkPhoto } from "./photo.js";
+import { SELFTEST, selftestFields, VAULT_TEST } from "./selftest.js";
 
 export const db = createDb();
 export const data = createData({ db });
 export const sync = createSync({ data, db, getConfig: loadSyncConfig, getApps: loadAppsOnDevice, getDeviceId });
-export const selftestCol = defineSelftest(data);
+export const vault = createVault({ data, db, sync, getDeviceType: deviceType, defaults: Object.fromEntries(APPS.filter((a) => a.vault).map((a) => [a.id, true])) });
+export const { defineCollection, collectionsFor } = createCollections({ data, vault });
+export const files = createFiles({ data, db, vault, sync, shrink: shrinkPhoto });
+export const migration = createMigration({ data, vault, sync, files, collectionsFor });
+export const usage = createUsage({ sync, db });
+sync.onAfterSync(async () => { try { await usage.check(); } catch { /* shown when checked by hand in Diagnostics */ } });
+export const selftestCol = data.define({ ...SELFTEST, fields: selftestFields, onDemand: true });
+export const vaultTestCol = defineCollection({ ...VAULT_TEST, fields: selftestFields, alwaysVault: true });
 
 // Apps declare their collections in their meta file; the shell registers them here.
 export function registerAppCollections(apps) {
-  for (const a of apps) for (const c of a.collections || []) data.define({ app: a.id, ...c });
+  for (const a of apps) for (const c of a.collections || []) defineCollection({ app: a.id, ...c });
 }
 
 export async function initCore() {
   await db.open();
+  await vault.init();
+  await files.init();
+  await usage.restore();
   const c = loadSyncConfig();
   setSyncStatus({ configured: !!(c.url && c.key) });
 }

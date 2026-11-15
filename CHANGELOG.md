@@ -8,6 +8,14 @@
 | Update banner fix | 0.2.1 | 0.2.0 |
 | Text fix (`=` and `'`) | 0.2.2 | 0.2.1 |
 | Full screen (tablet) | 0.2.3 | 0.2.1 |
+| Round 3: Vault, files, backup | 0.3.0 | 0.3.0 |
+
+## App 0.3.0 / Backend 0.3.0 — Phase 1, Round 3
+- The Vault: passphrase, AES-256-GCM encryption on the device, lock/unlock, change passphrase, per-app encryption with a guided, verified migration (never erases the old tab), import/export.
+- Files and photos in Drive (10 MB cap, 300 KB photo shrink, multi-part, per-file keys in the Vault, 30-day trash).
+- Weekly Sheet backup (last 8 kept), Back up now, usage warnings (80% cells, 85% Drive), new Diagnostics rows and tools.
+- Backend: file, backup and usage actions; run `grimAuthorize` and `grimInstallWeeklyBackup` once.
+- Deferred to Round 4: re-key for the lost-device plan, real-device photo test, recovery drill.
 
 ## App 0.2.3
 - Full screen: the manifest now asks Android to launch the installed app full screen (no clock, wifi or battery bar), falling back to the normal app window. A full screen toggle button (Shrexy's) appears in the top bar wherever the browser allows it, and hides on iPhone and when already launched full screen. Browsers only allow switching to full screen from a tap, so it cannot be turned on by itself at launch other than through the install setting.

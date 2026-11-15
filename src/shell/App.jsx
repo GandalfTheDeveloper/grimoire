@@ -12,6 +12,7 @@ import Settings from "./Settings.jsx";
 import Diagnostics from "./Diagnostics.jsx";
 import AppFrame from "./AppFrame.jsx";
 import UpdateBanner from "./UpdateBanner.jsx";
+import UsageBanner from "./UsageBanner.jsx";
 
 export default function App() {
   const route = useRoute();
@@ -58,6 +59,7 @@ export default function App() {
   return (
     <div className="gr" style={themeStyle(slate)} data-testid="shell">
       <UpdateBanner />
+      <UsageBanner />
       {body}
     </div>
   );

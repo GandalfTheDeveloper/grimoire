@@ -2,13 +2,16 @@
 // Every edit is saved on the device first (marked dirty), then the sync engine sends it.
 //
 // Readable mode (default): each field becomes a Sheet column, stored as text and typed on the way back.
-// Vault mode (Round 3): a codec turns all fields into one encrypted Payload column. Apps do not change.
+// Vault mode: a codec turns all fields into one encrypted Payload column. Apps do not change.
+// Codecs may be async (encryption is). They receive a context { app, coll, id } so ciphertext can be
+// bound to the record it belongs to. "coll" is the logical name an app uses, never the "...enc" twin.
 //
 // Charter rules this file enforces: unique ids, UpdatedAt on every record, deletes are flags,
 // add fields but never rename or remove, schema version carried on each record.
 
 export const ENVELOPE = ["Id", "CreatedAt", "UpdatedAt", "SyncedAt", "Deleted", "SchemaVersion"];
 const NAME_RE = /^[a-z][a-z0-9]{0,19}$/;
+export const ENC_SUFFIX = "enc"; // encrypted twin of a collection: <name>enc (so notes -> notesenc)
 const FIELD_RE = /^[A-Za-z][A-Za-z0-9_]{0,40}$/;
 const TYPES = ["text", "number", "bool", "json"];
 
@@ -60,11 +63,18 @@ export function createData({ db, now = () => Date.now() }) {
   const pkOf = (app, coll, id) => `${app}|${coll}|${id}`;
   const notify = (info) => listeners.forEach((l) => { try { l(info); } catch { /* ignore */ } });
 
-  function toPublic(def, rec) {
-    const codec = def.codec;
-    const values = codec.decode(rec.cols || {}, def.fields);
+  const logicalName = (def) => def.logical || def.name;
+  const ctxOf = (def, id) => ({ app: def.app, coll: logicalName(def), id });
+
+  async function toPublic(def, rec) {
+    const values = await def.codec.decode(rec.cols || {}, def.fields, ctxOf(def, rec.id));
     const upgraded = def.upgrade && rec.schemaVersion < def.schemaVersion ? def.upgrade(values, rec.schemaVersion) : values;
     return { id: rec.id, createdAt: rec.createdAt, updatedAt: rec.updatedAt, ...upgraded };
+  }
+
+  async function toPublicValues(def, rec) {
+    const { id, createdAt, updatedAt, ...values } = await toPublic(def, rec);
+    return values;
   }
 
   function define(def) {
@@ -74,7 +84,7 @@ export function createData({ db, now = () => Date.now() }) {
       if (!FIELD_RE.test(n) || ENVELOPE.includes(n)) throw new Error(`bad field name: ${n}`);
       if (!TYPES.includes(t)) throw new Error(`bad field type for ${n}`);
     }
-    const full = { schemaVersion: 1, codec: readableCodec, ...def, fields };
+    const full = { schemaVersion: 1, codec: readableCodec, isActive: () => true, ...def, fields };
     defs.set(`${def.app}|${def.name}`, full);
     const cid = `${def.app}|${def.name}`;
 
@@ -85,7 +95,7 @@ export function createData({ db, now = () => Date.now() }) {
           const recId = id || newId();
           const pk = pkOf(def.app, def.name, recId);
           const prev = await db.get(pk);
-          const prevValues = prev ? full.codec.decode(prev.cols || {}, fields) : {};
+          const prevValues = prev ? await full.codec.decode(prev.cols || {}, fields, ctxOf(full, recId)) : {};
           const merged = { ...prevValues, ...values };
           const t = Math.max(now(), prev ? prev.updatedAt + 1 : 0); // always moves forward, even on a slow clock
           const rec = {
@@ -95,7 +105,7 @@ export function createData({ db, now = () => Date.now() }) {
             syncedAt: prev ? prev.syncedAt || 0 : 0,
             deleted: 0,
             schemaVersion: full.schemaVersion,
-            cols: full.codec.encode(merged, fields),
+            cols: await full.codec.encode(merged, fields, ctxOf(full, recId)),
             dirty: 1,
           };
           await db.put(rec);
@@ -107,10 +117,56 @@ export function createData({ db, now = () => Date.now() }) {
       },
       async get(id) {
         const rec = await db.get(pkOf(def.app, def.name, id));
-        return rec && !rec.deleted ? toPublic(full, rec) : null;
+        return rec && !rec.deleted ? await toPublic(full, rec) : null;
       },
       async list() {
-        return (await db.byColl(cid)).filter((r) => !r.deleted).map((r) => toPublic(full, r)).sort((a, b) => a.createdAt - b.createdAt);
+        const rows = (await db.byColl(cid)).filter((r) => !r.deleted);
+        return (await Promise.all(rows.map((r) => toPublic(full, r)))).sort((a, b) => a.createdAt - b.createdAt);
+      },
+      // Every record including deleted ones, with timestamps. Used by migration and export.
+      async exportAll() {
+        const rows = await db.byColl(cid);
+        return Promise.all(rows.map(async (r) => ({
+          id: r.id, createdAt: r.createdAt, updatedAt: r.updatedAt, deleted: r.deleted ? 1 : 0,
+          values: r.deleted ? null : await toPublicValues(full, r),
+        })));
+      },
+      // Writes records keeping their ids and timestamps. An existing record is replaced only if the
+      // incoming one is newer. Returns how many were written.
+      async importAll(list) {
+        return serial(async () => {
+          let n = 0;
+          for (const item of list) {
+            const pk = pkOf(def.app, def.name, item.id);
+            const prev = await db.get(pk);
+            if (prev && prev.updatedAt >= item.updatedAt) continue;
+            const values = item.deleted ? {} : item.values || {};
+            const rec = {
+              pk, cid, app: def.app, coll: def.name, id: item.id,
+              createdAt: item.createdAt, updatedAt: item.updatedAt, syncedAt: prev ? prev.syncedAt || 0 : 0,
+              deleted: item.deleted ? 1 : 0, schemaVersion: full.schemaVersion,
+              cols: await full.codec.encode(values, fields, ctxOf(full, item.id)), dirty: 1,
+            };
+            await db.put(rec);
+            dirtyMap.set(pk, rec);
+            n += 1;
+          }
+          if (n) { notify({ app: def.app, coll: def.name }); writeListeners.forEach((l) => l()); }
+          return n;
+        });
+      },
+      // Removes this collection's records from THIS DEVICE only (the Sheet is not touched).
+      // Used after a migration so the old readable copy does not stay on the device or get re-sent.
+      async purgeLocal() {
+        return serial(async () => {
+          const rows = await db.byColl(cid);
+          await db.deleteMany(rows.map((r) => r.pk));
+          for (const r of rows) dirtyMap.delete(r.pk);
+          await db.setMeta(`cursor:${def.app}|${def.name}`, 0);
+          notify({ app: def.app, coll: def.name });
+          writeListeners.forEach((l) => l());
+          return rows.length;
+        });
       },
       async remove(id) {
         return serial(async () => {

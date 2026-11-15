@@ -1,8 +1,11 @@
 import { Lock } from "lucide-react";
 import { getApp } from "../apps/registry.js";
 import { go } from "../core/useRoute.js";
+import { vault } from "../core/index.js";
+import { useVaultState } from "./useVault.js";
 
 export default function Home({ appIds }) {
+  useVaultState();
   const apps = appIds.map(getApp).filter(Boolean);
   return (
     <div className="gr-body">
@@ -16,7 +19,7 @@ export default function Home({ appIds }) {
               <button key={a.id} className="gr-tile" data-testid={`tile-${a.id}`} onClick={() => go(`/app/${a.id}`)}>
                 <span className="row">
                   <Icon size={24} />
-                  {a.vault && <Lock size={14} aria-label="In the Vault" />}
+                  {vault.isEncrypted(a.id) && <Lock size={14} aria-label="In the Vault" />}
                 </span>
                 <span className="name">{a.name}</span>
               </button>

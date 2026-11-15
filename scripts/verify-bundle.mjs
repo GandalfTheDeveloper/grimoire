@@ -11,6 +11,7 @@ import { build } from "vite";
 import react from "@vitejs/plugin-react";
 import { JSDOM } from "jsdom";
 import { IDBFactory } from "fake-indexeddb";
+import { webcrypto } from "node:crypto";
 import { createBackend } from "../tests/sim/sheetsSim.js";
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
@@ -43,6 +44,8 @@ const dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></
 const w = dom.window;
 Object.defineProperty(w, "innerWidth", { value: 390, configurable: true });
 w.indexedDB = new IDBFactory();
+Object.defineProperty(w, "crypto", { value: webcrypto, configurable: true }); // jsdom has no WebCrypto subtle; real browsers do
+w.TextEncoder = TextEncoder; w.TextDecoder = TextDecoder; // likewise missing in jsdom, present in every browser
 w.fetch = backend.fetch;
 w.navigator.sendBeacon = () => true;
 const cssFile = fs.readdirSync(out).find((f) => f.endsWith(".css"));
@@ -100,6 +103,73 @@ check("Clear test data flags rows as deleted, never erases them", backend.rows("
 click(q("diag-resend"));
 await until(() => /re-send/.test(text("diag-result")), 8000);
 check("Re-send everything leaves the Sheet unchanged in size", backend.rows("selftest_items").length === 6 && /Items pending0/.test(text("diagnostics")));
+
+// ---------- Round 3: Vault, files, backup, usage warnings (through the built app's screens) ----------
+const pass = "correct horse battery staple";
+w.location.hash = "#/settings";
+await until(() => q("vault-card"));
+check("Settings shows the Vault as not set up", /Not set up yet/.test(text("vault-card")));
+type(q("vault-pass1"), pass); type(q("vault-pass2"), pass); click(q("vault-wrote"));
+await sleep(30);
+click(q("vault-create"));
+check("Create the Vault: key derivation, wrapped key saved to the Sheet", !!(await until(() => /Unlocked/.test(text("vault-card")) && backend.rows("core_vault").length === 1, 20000)), text("vault-card"));
+const vrows = backend.rows("core_vault");
+check("the Sheet holds exactly one wrapped-key record and no passphrase", vrows.length === 1 && !JSON.stringify(vrows).includes(pass));
+check("Settings now shows the Vault unlocked with a Lock now button", /Unlocked/.test(text("vault-card")) && !!q("vault-lock"));
+
+w.location.hash = "#/diagnostics";
+await until(() => q("diag-vtest"));
+click(q("diag-vtest"));
+await until(() => /Vault test (passed|FAILED)/.test(text("diag-result")), 15000);
+check("vault test passes from the built bundle against the (simulated) Sheet", /Vault test passed/.test(text("diag-result")), text("diag-result"));
+const venc = backend.rows("selftest_vaultedenc");
+check("vault test rows in the Sheet are one scrambled Payload column", venc.length === 2 && venc.every((r) => String(r.Payload).startsWith("g1.")) && !JSON.stringify(venc).includes("vault-test"));
+click(q("diag-vclear"));
+await until(() => /Cleared 2 vault test/.test(text("diag-result")), 8000);
+check("clearing vault test data flags the rows deleted, never erases them", backend.rows("selftest_vaultedenc").length === 2 && backend.rows("selftest_vaultedenc").every((r) => r.Deleted === 1));
+
+click(q("diag-ftest"));
+await until(() => /File test (passed|FAILED)|Problem/.test(text("diag-result")), 20000);
+check("file test passes: plain and encrypted files through (simulated) Drive", /File test passed: plain 2.5 MB in 2 parts; encrypted 1.6 MB in 2 parts/.test(text("diag-result")), text("diag-result"));
+check("the file test cleaned up after itself (Drive bin, nothing left live)", [...backend.drive.files.values()].filter((f) => /\.\d+$/.test(f.name) && !f.trashed).length === 0);
+
+click(q("diag-backup"));
+await until(() => /Backup made/.test(text("diag-result")), 8000);
+check("Back up now makes a dated copy in Grimoire Backups", /Backup made: Grimoire backup \d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(text("diag-result")), text("diag-result"));
+
+backend.drive.used = 90; backend.drive.limit = 100;
+click(q("diag-usage"));
+check("usage warning banner appears at 85%+ Google storage", !!(await until(() => q("usage-banner") && /90% full/.test(text("usage-banner")))), text("usage-banner"));
+click(q("usage-dismiss"));
+check("banner can be dismissed", !!(await until(() => !q("usage-banner"))));
+
+w.location.hash = "#/settings";
+await until(() => q("vault-lock"));
+click(q("vault-lock"));
+check("Lock now locks the Vault", !!(await until(() => /Locked/.test(text("vault-card")) && q("vault-unlock"))));
+w.location.hash = "#/diagnostics";
+await until(() => q("diag-vtest"));
+click(q("diag-vtest"));
+await until(() => /Unlock the Vault first/.test(text("diag-result")));
+check("while locked, the vault test says to unlock first and writes nothing", /Unlock the Vault first/.test(text("diag-result")) && backend.rows("selftest_vaultedenc").length === 2);
+
+w.location.hash = "#/app/journal";
+check("a Vault app shows the unlock screen while locked (phone relocked by hand)", !!(await until(() => q("vault-gate-unlock"))) && !q("placeholder-journal"));
+type(q("vault-pass"), "definitely the wrong one"); click(q("vault-unlock-btn"));
+check("a wrong passphrase is refused plainly", !!(await until(() => /didn't work/.test(text("vault-msg")), 8000)));
+type(q("vault-pass"), pass); click(q("vault-unlock-btn"));
+check("the right passphrase opens the app", !!(await until(() => q("placeholder-journal"), 8000)));
+
+w.location.hash = "#/settings";
+await until(() => q("vault-toggle-cookbook"));
+click(q("vault-toggle-cookbook"));
+await until(() => q("vault-start-cookbook"));
+click(q("vault-start-cookbook"));
+await until(() => q("vault-done-cookbook") || q("vault-error-cookbook"), 15000);
+check("guided migration of an app runs (backup, check, switch) from the Settings screen", !!q("vault-done-cookbook"), text("vault-error-cookbook") || text("vault-done-cookbook"));
+check("the app now shows as Encrypted", /Encrypted/.test(text("vault-state-cookbook")));
+check("a backup was taken before the migration (two backups now)", [...backend.drive.files.values()].filter((f) => f.name.startsWith("Grimoire backup ")).length === 2);
+
 const keys = Object.keys(w.localStorage);
 check("every on-device storage key is prefixed grimoire:", keys.length > 0 && keys.every((k) => k.startsWith("grimoire:")), keys.join(", "));
 check("no page errors were logged", errors.length === 0, errors.slice(0, 3).join(" | "));

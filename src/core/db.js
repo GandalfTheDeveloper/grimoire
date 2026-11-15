@@ -24,11 +24,14 @@ function memoryBackend() {
     async get(pk) { return records.get(pk) ? structuredClone(records.get(pk)) : undefined; },
     async put(rec) { records.set(rec.pk, structuredClone(rec)); },
     async putMany(list) { for (const r of list) records.set(r.pk, structuredClone(r)); },
+    async deleteMany(pks) { for (const pk of pks) records.delete(pk); },
     async byColl(cid) { return [...records.values()].filter((r) => r.cid === cid).map((r) => structuredClone(r)); },
     async dirty() { return [...records.values()].filter((r) => r.dirty === 1).map((r) => structuredClone(r)); },
     async all() { return [...records.values()].map((r) => structuredClone(r)); },
     async getMeta(k, fallback) { return meta.has(k) ? meta.get(k) : fallback; },
     async setMeta(k, v) { meta.set(k, v); },
+    async delMeta(k) { meta.delete(k); },
+    async metaKeys(prefix) { return [...meta.keys()].filter((k) => k.startsWith(prefix)); },
   };
 }
 
@@ -61,6 +64,16 @@ async function idbBackend(factory, name) {
         t.onabort = () => reject(t.error);
       });
     },
+    async deleteMany(pks) {
+      await new Promise((resolve, reject) => {
+        const t = db.transaction(STORE, "readwrite");
+        const s = t.objectStore(STORE);
+        for (const pk of pks) s.delete(pk);
+        t.oncomplete = resolve;
+        t.onerror = () => reject(t.error);
+        t.onabort = () => reject(t.error);
+      });
+    },
     byColl: (cid) => reqP(tx(STORE, "readonly").index("cid").getAll(cid)),
     dirty: () => reqP(tx(STORE, "readonly").index("dirty").getAll(1)),
     all: () => reqP(tx(STORE, "readonly").getAll()),
@@ -69,6 +82,11 @@ async function idbBackend(factory, name) {
       return row ? row.v : fallback;
     },
     async setMeta(k, v) { await reqP(tx(META, "readwrite").put({ k, v })); },
+    async delMeta(k) { await reqP(tx(META, "readwrite").delete(k)); },
+    async metaKeys(prefix) {
+      const rows = await reqP(tx(META, "readonly").getAll());
+      return rows.map((r) => r.k).filter((k) => k.startsWith(prefix));
+    },
   };
 }
 
@@ -96,10 +114,13 @@ export function createDb({ factory, name = "grimoire" } = {}) {
     get: wrap("get"),
     put: wrap("put"),
     putMany: wrap("putMany"),
+    deleteMany: wrap("deleteMany"),
     byColl: wrap("byColl"),
     dirty: wrap("dirty"),
     all: wrap("all"),
     getMeta: wrap("getMeta"),
     setMeta: wrap("setMeta"),
+    delMeta: wrap("delMeta"),
+    metaKeys: wrap("metaKeys"),
   };
 }

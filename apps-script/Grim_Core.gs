@@ -106,11 +106,18 @@ function grimRowToRecord_(row, hdr, headers, tz) {
   };
 }
 
+// A handler lists its collections. Each one may also have an encrypted twin named <collection>enc
+// (the Vault), which needs no separate listing.
+function grimTabAllowed_(handler, coll) {
+  if (handler.tabs.indexOf(coll) >= 0) return true;
+  return coll.length > 3 && coll.slice(-3) === "enc" && handler.tabs.indexOf(coll.slice(0, -3)) >= 0;
+}
+
 // ---------- the sync of one collection ----------
 
 function grimSyncItem_(ss, handler, item, now, beacon) {
   const app = item.app, coll = item.coll;
-  if (!GRIM_NAME_RE.test(String(coll)) || handler.tabs.indexOf(coll) < 0) return { error: "unknown_collection" };
+  if (!GRIM_NAME_RE.test(String(coll)) || !grimTabAllowed_(handler, coll)) return { error: "unknown_collection" };
   const tab = app + "_" + coll;
   const records = Array.isArray(item.records) ? item.records : [];
   if (records.length > GRIM_MAX_RECORDS) return { error: "too_many_records" };
@@ -250,7 +257,7 @@ function grimWriteChanged_(sh, headers, rows, dirtyRows, appended) {
 // For the in-app sync test only (handler.readback): returns the named rows as stored.
 function grimReadback_(ss, handler, body) {
   const coll = String(body.coll);
-  if (!GRIM_NAME_RE.test(coll) || handler.tabs.indexOf(coll) < 0) return [];
+  if (!GRIM_NAME_RE.test(coll) || !grimTabAllowed_(handler, coll)) return [];
   const sh = ss.getSheetByName(body.app + "_" + coll);
   if (!sh) return [];
   const tz = ss.getSpreadsheetTimeZone();
