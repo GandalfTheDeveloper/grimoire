@@ -116,6 +116,7 @@ export function editableText(mm, unitId, { tape = false } = {}) {
 }
 
 // What gets copied: the value plus its unit, e.g. "2 1/4 in", "161.8034 mm", "3' 3 1/4"".
-export function copyText(main, unitId) {
-  return unitId === "ftin" ? main : `${main} ${unitOf(unitId).label}`;
+// withUnit false (a setting): just the value, "161.8034". ft-in keeps its ' and " marks either way (they are the value).
+export function copyText(main, unitId, withUnit = true) {
+  return unitId === "ftin" || !withUnit ? main : `${main} ${unitOf(unitId).label}`;
 }

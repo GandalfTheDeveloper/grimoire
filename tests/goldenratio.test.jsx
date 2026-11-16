@@ -8,7 +8,9 @@ import { resetCore } from "./helpers/resetCore.js";
 import { setSyncStatus } from "../src/core/syncStatus.js";
 import { createBackend } from "./sim/sheetsSim.js";
 import { PHI, solve } from "../src/apps/goldenratio/math.js";
-import { parseToMm, formatMm, fraction32, fmt4, parseAmount, editableText } from "../src/apps/goldenratio/units.js";
+import { parseToMm, formatMm, fraction32, fmt4, parseAmount, editableText, copyText } from "../src/apps/goldenratio/units.js";
+import { valueCopyText } from "../src/apps/goldenratio/HistoryCard.jsx";
+import { resetSettingsCache } from "../src/apps/goldenratio/settings.js";
 import { applyKey } from "../src/apps/goldenratio/entry.js";
 import { SESSION_TTL } from "../src/apps/goldenratio/store.js";
 import { tapProps } from "../src/apps/goldenratio/tap.js";
@@ -155,6 +157,7 @@ beforeEach(async () => {
   cleanup();
   window.localStorage.clear();
   await resetCore();
+  resetSettingsCache();
   window.location.hash = "";
   setSyncStatus({ pending: 0, lastSync: null, errors: [], configured: false, lastError: null, backendVersion: null });
   Object.defineProperty(window, "innerWidth", { value: 390, configurable: true });
@@ -438,5 +441,227 @@ describe("Golden Ratio screens", () => {
     expect(screen.queryByTestId("gx-demobar")).toBeNull();
     await waitFor(() => expect(cards().length).toBe(1)); // the real history is back, untouched
     expect(window.localStorage.getItem("grimoire:goldenratio:demo")).toContain('"records":[]');
+  });
+});
+
+// ---------------- round 2 (app 0.11.0): scroll back down, clearing, settings ----------------
+describe("copy text with and without the unit", () => {
+  it("the unit is dropped when the setting is off; ft-in keeps its marks either way", () => {
+    expect(copyText("6.1803", "mm")).toBe("6.1803 mm");
+    expect(copyText("6.1803", "mm", false)).toBe("6.1803");
+    expect(copyText("2 1/4", "in", false)).toBe("2 1/4");
+    expect(copyText(`3' 3 1/4"`, "ftin", false)).toBe(`3' 3 1/4"`);
+    const e = { known: "a", typed: "10", units: { a: "in", b: "mm", whole: "cm" }, mm: solve("a", 254), tape: false };
+    expect(valueCopyText(e, "a")).toBe("10 in");
+    expect(valueCopyText(e, "a", false)).toBe("10");
+    expect(valueCopyText(e, "b", false)).toBe("156.9806");
+  });
+});
+
+const fakeScroll = (el, { top, height = 1000, client = 300 }) => {
+  Object.defineProperty(el, "scrollHeight", { value: height, configurable: true });
+  Object.defineProperty(el, "clientHeight", { value: client, configurable: true });
+  el.scrollTop = top;
+};
+const drag = (el, from, to) => {
+  fireEvent.touchStart(el, { touches: [{ clientY: from }] });
+  fireEvent.touchMove(el, { touches: [{ clientY: to }] });
+};
+const mode = () => tid("gx").dataset.mode;
+
+describe("Golden Ratio round 2", () => {
+  it("scrolling back down past the newest card returns to the fields; a short pull or a pull from higher up does not", async () => {
+    await open();
+    fireEvent.click(tid("gx-fval-a")); typeStr("4"); fireEvent.click(tid("gx-done"));
+    await waitFor(() => expect(cards().length).toBe(1));
+    drag(tid("gx-hist"), 100, 90); // finger up on the default screen: not "scrolling into the history"
+    expect(mode()).toBe("default");
+    drag(tid("gx-hist"), 100, 140); // finger down: into the history
+    expect(mode()).toBe("history");
+    expect(screen.queryByTestId("gx-fields")).toBeNull();
+    const h = tid("gx-hist");
+    fakeScroll(h, { top: 200 }); // scrolled up into older cards
+    drag(h, 300, 200);
+    expect(mode()).toBe("history"); // the gesture didn't start at the bottom
+    fakeScroll(h, { top: 700 }); // now at the bottom (700 + 300 = 1000)
+    drag(h, 300, 280);
+    expect(mode()).toBe("history"); // too short
+    drag(h, 300, 250);
+    expect(mode()).toBe("default");
+    expect(tid("gx-fields")).toBeTruthy();
+    expect(fnum("a")).toBe("4"); // scrolling back doesn't clear anything
+  });
+
+  it("mouse wheel: down at the bottom after a pause returns to the fields, not mid-fling", async () => {
+    await open();
+    fireEvent.wheel(tid("gx-hist"), { deltaY: -30 });
+    expect(mode()).toBe("history");
+    const h = tid("gx-hist");
+    fakeScroll(h, { top: 100 });
+    await new Promise((r) => setTimeout(r, 320));
+    fireEvent.wheel(h, { deltaY: 40 }); // a new gesture starting above the bottom
+    fakeScroll(h, { top: 700 });
+    fireEvent.wheel(h, { deltaY: 40 }); // same gesture reaches the bottom: stays
+    expect(mode()).toBe("history");
+    await new Promise((r) => setTimeout(r, 320));
+    fireEvent.wheel(h, { deltaY: 40 }); // after a pause, at the bottom: back to the fields
+    expect(mode()).toBe("default");
+  });
+
+  it("tapping the graphic saves what is on screen, then clears every field", async () => {
+    await open();
+    fireEvent.click(tid("gx-fval-a")); typeStr("10"); fireEvent.click(tid("gx-done"));
+    await waitFor(() => expect(cards().length).toBe(1));
+    fireEvent.click(tid("gx-graphic"));
+    for (const f of ["a", "b", "whole"]) expect(screen.queryByTestId(`gx-fnum-${f}`)).toBeNull();
+    // load a card, then the graphic clears it (no duplicate saved)
+    fireEvent.click(cards()[0].querySelector(".gx-card"));
+    expect(fnum("b")).toBe("6.1803");
+    fireEvent.click(tid("gx-graphic"));
+    expect(fnum("a")).toBe("");
+    // mid-typing: saved first, then cleared, pad closed
+    fireEvent.click(tid("gx-fval-b")); typeStr("50");
+    fireEvent.click(tid("gx-graphic"));
+    expect(mode()).toBe("default");
+    expect(screen.queryByTestId("gx-keypad")).toBeNull();
+    expect(fnum("b")).toBe("");
+    await waitFor(() => expect(cards().length).toBe(2));
+    // and the next value starts fresh
+    fireEvent.click(tid("gx-fval-whole")); typeStr("5");
+    expect(fnum("a")).toBe("3.0902");
+  });
+
+  it("the Clear key empties every field, keeps the pad open on the same field, and saves first", async () => {
+    await open();
+    fireEvent.change(tid("gx-unit-a"), { target: { value: "in" } });
+    fireEvent.click(tid("gx-fval-a")); typeStr("10");
+    fireEvent.click(tid("gx-clear"));
+    for (const f of ["a", "b", "whole"]) expect(fnum(f)).toBe("");
+    expect(tid("gx-keypad")).toBeTruthy();
+    expect(tid("gx-field-a").className).toMatch(/active/);
+    expect(tid("gx-unit-a").value).toBe("in"); // units are not touched
+    await waitFor(() => expect(cards().length).toBe(1));
+    typeStr("5");
+    expect(fnum("a")).toBe("5");
+    expect(fnum("b")).toBe("78.4903");
+    // Clear on an empty pad does nothing harmful and saves nothing
+    fireEvent.click(tid("gx-clear")); fireEvent.click(tid("gx-clear"));
+    fireEvent.click(tid("gx-done"));
+    await new Promise((r) => setTimeout(r, 30));
+    expect(cards().length).toBe(2);
+    // computer keyboard: Delete is Clear
+    fireEvent.click(tid("gx-fval-b")); fireEvent.keyDown(window, { key: "7" });
+    expect(fnum("b")).toBe("7");
+    fireEvent.keyDown(window, { key: "Delete" });
+    expect(fnum("b")).toBe("");
+  });
+
+  it("the Clear key is there in tape mode and in ft-in too", async () => {
+    await open();
+    fireEvent.change(tid("gx-unit-a"), { target: { value: "ftin" } });
+    fireEvent.click(tid("gx-fval-a"));
+    expect(tid("gx-clear")).toBeTruthy();
+    expect(tid("gx-key-feet")).toBeTruthy();
+    fireEvent.click(tid("gx-tape"));
+    expect(tid("gx-clear")).toBeTruthy();
+    expect(tid("gx-key-space")).toBeTruthy();
+  });
+
+  it("settings gear: only on apps that have settings; the app keeps what you typed underneath; back closes it", async () => {
+    await open();
+    fireEvent.click(tid("gx-fval-a")); typeStr("10");
+    fireEvent.click(tid("app-settings"));
+    expect(await screen.findByTestId("gx-settings")).toBeTruthy();
+    expect(tid("topbar").textContent).toMatch(/Golden Ratio settings/);
+    expect(screen.queryByTestId("app-settings")).toBeNull();
+    fireEvent.click(tid("back"));
+    expect(screen.queryByTestId("gx-settings")).toBeNull();
+    expect(fnum("a")).toBe("10");
+    expect(fnum("b")).toBe("6.1803");
+    expect(window.location.hash).toBe("#/app/goldenratio");
+    fireEvent.click(tid("back")); // now leaves the app
+    await screen.findByTestId("home-grid");
+    window.location.hash = "#/app/fitness";
+    await screen.findByTestId("frame-fitness");
+    expect(screen.queryByTestId("app-settings")).toBeNull();
+  });
+
+  it("copy without the unit: number pad Copy and holding a history value", async () => {
+    await open();
+    fireEvent.click(tid("app-settings"));
+    fireEvent.click(await screen.findByTestId("gx-set-copyunit"));
+    expect(tid("gx-set-copyunit").checked).toBe(false);
+    fireEvent.click(tid("back"));
+    fireEvent.click(tid("gx-fval-a")); typeStr("10");
+    fireEvent.click(tid("gx-copy")); fireEvent.click(tid("gx-copy-b"));
+    await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenLastCalledWith("6.1803"));
+    fireEvent.click(tid("gx-copy")); fireEvent.click(tid("gx-copy-a"));
+    await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenLastCalledWith("10"));
+    fireEvent.click(tid("gx-done"));
+    await waitFor(() => expect(cards().length).toBe(1));
+    vi.useFakeTimers();
+    const v = cards()[0].querySelector('[data-testid="gx-val-whole"]');
+    fireEvent.pointerDown(v, { clientX: 5, clientY: 5 });
+    vi.advanceTimersByTime(600);
+    vi.useRealTimers();
+    await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenLastCalledWith("16.1803"));
+    // turned back on: the unit comes back
+    fireEvent.click(tid("app-settings"));
+    fireEvent.click(await screen.findByTestId("gx-set-copyunit"));
+    fireEvent.click(tid("back"));
+    fireEvent.click(tid("gx-fval-a")); fireEvent.click(tid("gx-copy")); fireEvent.click(tid("gx-copy-b"));
+    await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenLastCalledWith("6.1803 mm"));
+  });
+
+  it("hide Try demo mode; leaving demo mode stays possible; settings reach the Sheet as one row", async () => {
+    await open();
+    fireEvent.wheel(tid("gx-hist"), { deltaY: -10 });
+    expect(tid("gx-demo-on")).toBeTruthy();
+    fireEvent.click(tid("gx-demo-on"));
+    fireEvent.click(tid("app-settings"));
+    fireEvent.click(await screen.findByTestId("gx-set-demo"));
+    expect(tid("gx-set-demo").checked).toBe(false);
+    fireEvent.click(tid("back"));
+    expect(tid("gx-demo-off")).toBeTruthy(); // still in demo mode: the way out is never hidden
+    fireEvent.click(tid("gx-demo-off"));
+    expect(screen.queryByTestId("gx-demo-on")).toBeNull();
+    await settle();
+    const rows = be.rows("goldenratio_settings");
+    expect(rows.length).toBe(1);
+    expect(rows[0].Id).toBe("goldenratio-settings");
+    expect(rows[0].HideDemo).toBe("TRUE");
+    expect(rows[0].CopyUnit).toBe("keep");
+    expect(be.rows("goldenratio_history").length).toBe(0); // demo stays out of the Sheet
+  });
+
+  it("settings made on another device show up here", async () => {
+    be.post({ key: KEY, action: "sync", items: [{ app: "goldenratio", coll: "settings", since: 0, pull: false, fields: ["HideDemo", "CopyUnit"],
+      records: [{ id: "goldenratio-settings", createdAt: 1000, updatedAt: 1000, deleted: 0, schemaVersion: 1, cols: { HideDemo: "TRUE", CopyUnit: "drop" } }] }] });
+    await open();
+    await settle();
+    fireEvent.click(tid("app-settings"));
+    await waitFor(() => expect(screen.getByTestId("gx-set-copyunit").checked).toBe(false));
+    expect(tid("gx-set-demo").checked).toBe(false);
+    fireEvent.click(tid("back"));
+    fireEvent.wheel(tid("gx-hist"), { deltaY: -10 });
+    expect(screen.queryByTestId("gx-demo-on")).toBeNull();
+  });
+});
+
+
+describe("backend 0.7.0: goldenratio_settings", () => {
+  const item = (coll, cols) => ({ app: "goldenratio", coll, since: 0, pull: true, fields: Object.keys(cols),
+    records: [{ id: "goldenratio-settings", createdAt: 5, updatedAt: 5, deleted: 0, schemaVersion: 1, cols }] });
+  it("accepts the settings tab, still refuses tabs it doesn't list, and keeps values as text", () => {
+    const r = be.post({ key: KEY, action: "sync", items: [item("settings", { HideDemo: "TRUE", CopyUnit: "drop" }), item("other", { X: "1" })] });
+    expect(r.ok).toBe(true);
+    expect(r.items[0].acked).toEqual(["goldenratio-settings"]);
+    expect(r.items[1].error).toBe("unknown_collection");
+    const rows = be.rows("goldenratio_settings");
+    expect(rows.length).toBe(1);
+    expect(rows[0].HideDemo).toBe("TRUE");
+    expect(typeof rows[0].HideDemo).toBe("string");
+    expect(rows[0].CopyUnit).toBe("drop");
+    expect(be.post({ key: KEY, action: "ping" }).version).toBe("0.7.0");
   });
 });

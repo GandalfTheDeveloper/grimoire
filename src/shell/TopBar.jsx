@@ -22,7 +22,8 @@ export function StatusDot() {
   );
 }
 
-export default function TopBar({ title, onBack, showSettings, lockable }) {
+// showSettings: Grimoire's settings (home screen). onAppSettings: the open app's own settings (apps that have them).
+export default function TopBar({ title, onBack, showSettings, onAppSettings, lockable }) {
   const fs = useFullscreen();
   return (
     <header className="gr-top" data-testid="topbar">
@@ -41,6 +42,11 @@ export default function TopBar({ title, onBack, showSettings, lockable }) {
       {fs.supported && (
         <button className="gr-iconbtn" aria-label={fs.on ? "Exit full screen" : "Full screen"} data-testid="fullscreen" onClick={fs.toggle}>
           {fs.on ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
+        </button>
+      )}
+      {onAppSettings && (
+        <button className="gr-iconbtn" aria-label={`${title} settings`} data-testid="app-settings" onClick={onAppSettings}>
+          <Gear size={20} />
         </button>
       )}
       {showSettings && (

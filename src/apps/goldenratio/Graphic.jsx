@@ -1,5 +1,5 @@
 // The segment graphic: line split at the golden ratio into a and b, diamond ends, underbrace for a+b.
-// Same size and labels on every screen. Tapping it goes back to the default screen.
+// Same size and labels on every screen. Tapping it goes back to the default screen and clears the fields.
 import { tapProps } from "./tap.js";
 
 export default function Graphic({ onPress }) {

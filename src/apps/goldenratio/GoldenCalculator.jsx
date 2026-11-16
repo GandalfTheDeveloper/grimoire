@@ -7,14 +7,17 @@
 // Three screens:
 //   default  history (as much as fits) > graphic > three fields
 //   typing   one history card > graphic > three fields > number pad        (tap a field)
-//   history  history fills the screen > graphic pinned at the bottom          (scroll the history)
-// Tapping the graphic always goes back to default.
+//   history  history fills the screen > graphic pinned at the bottom          (scroll up into the history)
+// Back to default: scroll back down past the newest card, or tap the graphic.
+// Tapping the graphic also clears every field (the Clear key on the pad does the same and keeps the pad open).
+// Either way the calculation on screen is saved to history first, so clearing never loses anything.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./golden.css";
 import { FIELDS, solve } from "./math.js";
 import { UNITS, parseToMm, formatMm, editableText, copyText, isImperial, DEFAULT_UNIT } from "./units.js";
 import { applyKey } from "./entry.js";
 import { useHistory, loadSession, saveSession, sessionExpired, defaultSession, APP_ID } from "./store.js";
+import { useGoldenSettings } from "./settings.js";
 import Graphic from "./Graphic.jsx";
 import Keypad from "./Keypad.jsx";
 import HistoryCard from "./HistoryCard.jsx";
@@ -22,6 +25,8 @@ import { tapProps } from "./tap.js";
 
 const LABELS = { a: "Longer section (a)", b: "Shorter section (b)", whole: "Whole (a + b)" };
 const SHORT = { a: "a", b: "b", whole: "a+b" };
+const PULL_PX = 40; // how far past the newest card you pull to get back to the fields
+const WHEEL_GAP_MS = 300; // a pause this long between wheel ticks starts a new wheel gesture
 
 async function writeClipboard(text) {
   try { if (navigator.clipboard && navigator.clipboard.writeText) { await navigator.clipboard.writeText(text); return true; } } catch { /* fall through */ }
@@ -37,6 +42,7 @@ async function writeClipboard(text) {
 
 export default function GoldenCalculator({ source = APP_ID }) {
   const hist = useHistory();
+  const settings = useGoldenSettings();
   const [mode, setMode] = useState("default");
   const [session, setSession] = useState(() => loadSession());
   const [known, setKnown] = useState(null); // field you typed in (white); the other two are calculated (gold)
@@ -95,6 +101,17 @@ export default function GoldenCalculator({ source = APP_ID }) {
 
   const goDefault = () => { commit(); setActive(null); setCopyOpen(false); setMode("default"); };
 
+  // ---- clearing: save what is on screen to history, then empty all three fields ----
+  const clearFields = (keepField) => {
+    commit();
+    dirty.current = false;
+    lastValid.current = null;
+    live.current = { text: "", replace: false };
+    setKnown(keepField || null); setText(""); setReplace(false); setCopyOpen(false);
+  };
+  const onGraphic = () => { clearFields(null); setActive(null); setMode("default"); };
+  const onClear = () => { touchSession(); clearFields(active); }; // the pad stays open on the same field
+
   // ---- fields ----
   const openField = (f) => {
     touchSession();
@@ -148,9 +165,9 @@ export default function GoldenCalculator({ source = APP_ID }) {
 
   const onCopy = (f) => {
     setCopyOpen(false);
-    if (f === known && text.trim()) return copy(copyText(text.trim(), units[f]));
+    if (f === known && text.trim()) return copy(copyText(text.trim(), units[f], settings.copyUnit));
     if (!results) return flash("Nothing to copy yet");
-    copy(copyText(formatMm(results[f], units[f], { tape: tape && isImperial(units[f]) }).main, units[f]));
+    copy(copyText(formatMm(results[f], units[f], { tape: tape && isImperial(units[f]) }).main, units[f], settings.copyUnit));
   };
 
   const loadEntry = (e) => {
@@ -160,9 +177,9 @@ export default function GoldenCalculator({ source = APP_ID }) {
     setActive(null); setCopyOpen(false); setMode("default");
   };
 
-  // ---- computer keyboard (digits, . / space ' backspace, Enter or Esc for Done) ----
+  // ---- computer keyboard (digits, . / space ' backspace, Delete for Clear, Enter or Esc for Done) ----
   const keyRef = useRef(null);
-  keyRef.current = { onKey, goDefault, active };
+  keyRef.current = { onKey, goDefault, onClear, active };
   useEffect(() => {
     const onDown = (e) => {
       const r = keyRef.current;
@@ -170,20 +187,39 @@ export default function GoldenCalculator({ source = APP_ID }) {
       const map = { ".": ".", ",": ".", "/": "/", " ": "space", "'": "feet", Backspace: "back" };
       if (/^[0-9]$/.test(e.key)) { e.preventDefault(); r.onKey(e.key); }
       else if (map[e.key]) { e.preventDefault(); r.onKey(map[e.key]); }
+      else if (e.key === "Delete") { e.preventDefault(); r.onClear(); }
       else if (e.key === "Enter" || e.key === "Escape") { e.preventDefault(); r.goDefault(); }
     };
     window.addEventListener("keydown", onDown);
     return () => window.removeEventListener("keydown", onDown);
   }, []);
 
-  // ---- history scrolling: any scroll on the history grows it to the history screen ----
+  // ---- history scrolling ----
+  // Scrolling UP into the history (finger down, wheel up) grows it to the history screen.
+  // On the history screen, scrolling DOWN past the newest card (it is already at the bottom when the gesture
+  // starts, then the finger keeps pulling up) goes back to the default screen with the fields.
+  // A gesture that only reaches the bottom does not count; that stops a fling from bouncing you out of the history.
   const toHistory = () => { if (mode === "history") return; commit(); setActive(null); setCopyOpen(false); setMode("history"); };
-  const onHistTouchStart = (e) => { touch.current = e.touches && e.touches[0] ? e.touches[0].clientY : null; };
-  const onHistTouchMove = (e) => {
-    if (mode === "history" || touch.current === null || !e.touches || !e.touches[0]) return;
-    if (Math.abs(e.touches[0].clientY - touch.current) > 8) { touch.current = null; toHistory(); }
+  const toFields = () => { setCopyOpen(false); setMode("default"); };
+  const atBottom = () => { const el = histRef.current; return !el || el.scrollTop + el.clientHeight >= el.scrollHeight - 2; };
+  const onHistTouchStart = (e) => {
+    touch.current = e.touches && e.touches[0] ? { y: e.touches[0].clientY, bottom: atBottom() } : null;
   };
-  const onHistWheel = (e) => { if (mode !== "history" && Math.abs(e.deltaY) > 0) toHistory(); };
+  const onHistTouchMove = (e) => {
+    const t = touch.current;
+    if (!t || !e.touches || !e.touches[0]) return;
+    const dy = e.touches[0].clientY - t.y; // > 0: finger moving down (toward older cards)
+    if (mode !== "history") { if (dy > 8) { touch.current = null; toHistory(); } return; }
+    if (t.bottom && dy < -PULL_PX && atBottom()) { touch.current = null; toFields(); }
+  };
+  const wheel = useRef({ last: 0, startBottom: false });
+  const onHistWheel = (e) => {
+    const now = Date.now(), w = wheel.current;
+    if (now - w.last > WHEEL_GAP_MS) w.startBottom = atBottom(); // a new wheel gesture
+    w.last = now;
+    if (mode !== "history") { if (e.deltaY < 0) toHistory(); return; }
+    if (e.deltaY > 0 && w.startBottom && atBottom()) { w.startBottom = false; toFields(); }
+  };
 
   // newest card stays in view (at the bottom, next to the graphic)
   const shown = mode === "typing" ? hist.items.slice(-1) : hist.items;
@@ -208,7 +244,7 @@ export default function GoldenCalculator({ source = APP_ID }) {
       )}
       <div className="gx-hist" ref={histRef} data-testid="gx-hist" onTouchStart={onHistTouchStart} onTouchMove={onHistTouchMove} onWheel={onHistWheel}>
         <div className="gx-spacer" />
-        {mode === "history" && !hist.demoOn && (
+        {mode === "history" && !hist.demoOn && !settings.hideDemo && (
           <button type="button" className="gx-demolink" data-testid="gx-demo-on" {...tapProps(() => hist.setDemoOn(true))}>Try demo mode</button>
         )}
         {mode === "history" && hist.demoOn && (
@@ -216,11 +252,11 @@ export default function GoldenCalculator({ source = APP_ID }) {
         )}
         {shown.length === 0 && mode !== "typing" && <p className="gx-empty">Your calculations will show up here.</p>}
         {shown.map((e) => (
-          <HistoryCard key={e.id} entry={e} swipe={mode === "history"} onLoad={loadEntry} onCopy={copy} onDelete={hist.remove} />
+          <HistoryCard key={e.id} entry={e} swipe={mode === "history"} copyUnit={settings.copyUnit} onLoad={loadEntry} onCopy={copy} onDelete={hist.remove} />
         ))}
       </div>
 
-      <Graphic onPress={goDefault} />
+      <Graphic onPress={onGraphic} />
 
       {mode !== "history" && (
         <div className="gx-fields" data-testid="gx-fields">
@@ -249,7 +285,7 @@ export default function GoldenCalculator({ source = APP_ID }) {
 
       {mode === "typing" && (
         <Keypad tape={tape} ftin={active && units[active] === "ftin"} copyOpen={copyOpen}
-          onKey={onKey} onTape={onTape} onCopyMenu={() => setCopyOpen((o) => !o)} onCopy={onCopy} onDone={goDefault} />
+          onKey={onKey} onTape={onTape} onCopyMenu={() => setCopyOpen((o) => !o)} onCopy={onCopy} onClear={onClear} onDone={goDefault} />
       )}
     </div>
   );

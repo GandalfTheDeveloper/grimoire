@@ -204,3 +204,33 @@ Do I1 and I2 on the tablet, I3 and I4 on the phone. The phone steps are the ones
 
 If anything doesn't match, tell me the step number and what you saw instead.
 
+## K. App 0.11.0: Golden Ratio round 2 (after the Apps Script update to 0.7.0)
+
+### K1. Versions (phone)
+1. Open **Grimoire**. If an **Update available** banner shows, tap **Update now**. At the bottom of the home screen, **Build** should start with **0.11.0**.
+2. Tap the **gear** on the home screen, find **Connection to your Sheet**, tap **Save and test**. You should see "Connected. Backend version 0.7.0." If it shows 0.6.0, the Apps Script deployment was not updated: redo that part first.
+
+### K2. Scroll back down (phone)
+1. Open **Golden Ratio**. Do two or three calculations so there are cards.
+2. Drag **down** on the history (as if pulling older cards into view). The fields go away and the history fills the screen.
+3. Scroll back down until the newest card (bottom) is in view and stops. Lift your finger.
+4. Drag **up** on the history once more, a short pull. You should see the three fields come back, with the same values as before.
+5. On the default screen, drag **up** on the history. Nothing should change (it no longer opens the history screen).
+
+### K3. Graphic clears, Clear key (phone)
+1. Tap **a**, type **10**, tap **Done**. Tap the **graphic**. All three fields should be empty (grey labels), and the 10 calculation is a card in the history.
+2. Tap a history card. Its values load. Tap the **graphic**: the fields empty again, and no extra card appears.
+3. Tap **b**, type **50**. On the right side of the number pad, tap **Clear** (between the Copy key and backspace). All fields empty, the pad stays open, and **b** is still the active field. Type **5**: a and a+b fill in.
+4. Tap **Done**, then the **graphic**. The b = 50 calculation should be in the history.
+
+### K4. Settings (phone, then computer)
+1. With Golden Ratio open, tap the **gear** in the top bar (top right). You should see **Golden Ratio settings** with two checkboxes.
+2. Tap **Copy the unit too** so it is unchecked. Tap the **back arrow**: you are back in Golden Ratio (not the home screen).
+3. Tap **a**, type **10**, tap the **Copy** key, then **b**. You should see "Copied 6.1803" (no "mm"). Paste into Notes to check.
+4. Tap **Done**. Hold the gold **a+b** value on the card for half a second: "Copied 16.1803".
+5. Tap the gear, uncheck **Show "Try demo mode"**, tap back. Scroll up to the top of the history: there should be no **Try demo mode** link.
+6. On the computer, open Grimoire and Golden Ratio. Within a minute or two (or after **Diagnostics** > **Sync now**), the gear should show the same two settings unchecked.
+7. Turn both settings back on if you want the old behaviour (or leave them; your choice).
+
+If anything doesn't match, tell me the step number and what you saw instead.
+

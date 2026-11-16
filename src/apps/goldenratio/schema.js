@@ -12,7 +12,13 @@ export const HISTORY_FIELDS = {
   AMm: "number", BMm: "number", WholeMm: "number",
   Tape: "bool", Source: "text",
 };
-export const COLLECTIONS = [{ name: "history", fields: HISTORY_FIELDS }];
+// "settings" -> Sheet tab goldenratio_settings: ONE record (id below) so the same settings show on every device.
+//   HideDemo   TRUE hides the "Try demo mode" button (leaving demo mode is always possible)
+//   CopyUnit   TRUE copies "6.1803 mm"; FALSE copies "6.1803". Stored as "keep" / "drop" text, not a bool, so a
+//              blank (record from before this column existed) means the default (with unit).
+export const SETTINGS_FIELDS = { HideDemo: "bool", CopyUnit: "text" };
+export const SETTINGS_ID = "goldenratio-settings";
+export const COLLECTIONS = [{ name: "history", fields: HISTORY_FIELDS }, { name: "settings", fields: SETTINGS_FIELDS }];
 
 export const toFields = (e) => ({
   Known: e.known, Typed: e.typed,

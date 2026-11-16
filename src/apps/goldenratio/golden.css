@@ -53,7 +53,12 @@
 /* number pad */
 .gx-keypad { flex: 0 0 auto; background: var(--gx-keypad); border-radius: 14px; padding: 6px; display: flex; flex-direction: column; gap: 6px; }
 .gx-krow { display: flex; gap: 5px; }
-.gx-kgrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+/* digits on the left (3 x 4); on the right one column of five: tape, copy, clear, backspace, Done (slightly shorter keys) */
+.gx-kgrid { display: flex; gap: 6px; }
+.gx-kdigits { flex: 3 1 0; min-width: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.gx-kfn { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.gx-kfn .gx-key { flex: 1 1 0; height: auto; min-height: 0; }
+.gx-key-clear { font-size: 15px !important; }
 .gx-key { height: 50px; border-radius: 10px; background: var(--gx-key) !important; font-size: 23px; display: flex; align-items: center; justify-content: center; touch-action: manipulation; }
 .gx-key:active { background: var(--card-hover) !important; }
 .gx-key-small { flex: 1; height: 40px; font-size: 16px; background: var(--gx-key2) !important; }
@@ -61,7 +66,7 @@
 .gx-key-word { font-size: 16px; }
 .gx-key-fn { color: var(--sub) !important; }
 .gx-key-fn.on { background: var(--gx-gold) !important; color: var(--gx-on-gold) !important; }
-.gx-key-done { background: var(--gx-a) !important; color: var(--gx-on-a) !important; font-size: 18px; font-weight: 600; }
+.gx-key-done { background: var(--gx-a) !important; color: var(--gx-on-a) !important; font-size: 17px; font-weight: 600; }
 .gx-key-blank { background: transparent !important; }
 .gx-copyrow { align-items: center; height: 40px; padding: 0 4px; font-size: 14px; color: var(--sub); gap: 8px; }
 .gx-chip { flex: 1; height: 36px; border-radius: 8px; border: 2px solid !important; font-family: Georgia, serif; font-style: italic; font-size: 17px; }

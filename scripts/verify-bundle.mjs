@@ -229,6 +229,32 @@ check("a = 10 gives b = 6.1803 and a+b = 16.1803 (gold)", !!(await until(() => t
 click(q("gx-done"));
 check("Done saves one history card", !!(await until(() => w.document.querySelectorAll('[data-testid="gx-card"]').length === 1)));
 check("the calculation reaches the (simulated) Sheet as goldenratio_history, typed value kept as text", !!(await until(() => backend.rows("goldenratio_history").length === 1 && backend.rows("goldenratio_history")[0].Typed === "10", 8000)), String(backend.rows("goldenratio_history").length));
+// ---------- Golden Ratio round 2 (app 0.11.0, backend 0.7.0) ----------
+click(q("gx-fval-b"));
+await until(() => q("gx-keypad") && q("gx-key-5"));
+for (const k of ["5", "0"]) click(q(`gx-key-${k}`));
+await until(() => q("gx-fnum-b") && text("gx-fnum-b") === "50");
+click(q("gx-clear"));
+check("Clear empties every field and keeps the pad open", !!(await until(() => !q("gx-fnum-a") && !q("gx-fnum-b") && !q("gx-fnum-whole") && q("gx-keypad"))));
+check("Clear saved the calculation first (b = 50 reaches the Sheet)", !!(await until(() => backend.rows("goldenratio_history").some((r) => r.Typed === "50" && r.Known === "b"), 8000)), String(backend.rows("goldenratio_history").length));
+for (const k of ["8"]) click(q(`gx-key-${k}`));
+click(q("gx-graphic"));
+check("tapping the graphic clears the fields and closes the pad", !!(await until(() => !q("gx-fnum-b") && !q("gx-keypad") && q("gx").dataset.mode === "default")));
+const hist = q("gx-hist");
+hist.dispatchEvent(new w.WheelEvent("wheel", { deltaY: -30, bubbles: true }));
+check("scrolling up opens the history screen", !!(await until(() => q("gx").dataset.mode === "history")));
+await sleep(350);
+hist.dispatchEvent(new w.WheelEvent("wheel", { deltaY: 30, bubbles: true }));
+check("scrolling back down past the newest card returns to the fields", !!(await until(() => q("gx").dataset.mode === "default" && q("gx-fields"))));
+await until(() => q("app-settings"));
+click(q("app-settings"));
+check("the gear opens Golden Ratio's settings", !!(await until(() => q("gx-settings") && /Golden Ratio settings/.test(text("topbar")))));
+click(q("gx-set-copyunit"));
+await sleep(50);
+click(q("gx-set-demo"));
+check("the settings reach the (simulated) Sheet as one goldenratio_settings row", !!(await until(() => backend.rows("goldenratio_settings").length === 1 && backend.rows("goldenratio_settings")[0].CopyUnit === "drop" && backend.rows("goldenratio_settings")[0].HideDemo === "TRUE", 8000)));
+click(q("back"));
+check("back closes the settings and stays in Golden Ratio", !!(await until(() => !q("gx-settings") && q("gx"))));
 click(q("back"));
 check("closing Golden Ratio returns Home and unmounts it", !!(await until(() => q("home-grid") && !q("gx"))));
 

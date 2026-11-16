@@ -12,7 +12,7 @@ export const app = {
   iconSrc,
   devices: ["phone", "tablet"], // "tablet" is also what a computer browser counts as (700 px and wider)
   vault: false,
-  collections: COLLECTIONS, // history -> Sheet tab goldenratio_history
+  collections: COLLECTIONS, // history -> goldenratio_history, settings -> goldenratio_settings
   theme: {
     name: "Golden Ratio (grey and gold)",
     vars: {
@@ -27,4 +27,5 @@ export const app = {
   },
   note: "Golden ratio calculator with synced history. Spec: docs/apps/goldenratio.md.",
   load: () => import("./index.jsx"),
+  settings: () => import("./Settings.jsx"), // the gear in the top bar while the app is open
 };

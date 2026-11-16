@@ -2,14 +2,14 @@
 // Everything here is prefixed grim / GRIM_ so it cannot collide with the old Shrexy script in the same project.
 // The key lives in Script Properties (GRIMOIRE_KEY), never in this file, and arrives in the request body.
 
-const GRIM_VERSION = "0.6.0";
+const GRIM_VERSION = "0.7.0";
 
 // One line per app. Add a new app = add its handler file + one line here, then deploy a new version.
 const GRIM_HANDLERS = {
   core: function () { return grimApp_core_(); },
   selftest: function () { return grimApp_selftest_(); },
   fitness: function () { return grimApp_fitness_(); }, // Super Shrexy on shared records (0.5.0)
-  goldenratio: function () { return grimApp_goldenratio_(); }, // Golden Ratio history (0.6.0)
+  goldenratio: function () { return grimApp_goldenratio_(); }, // Golden Ratio history (0.6.0) and settings (0.7.0)
 };
 
 function doGet(e) {

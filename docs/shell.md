@@ -27,3 +27,6 @@ Vault gate in the app frame (setup or unlock before a Vault app opens; tablet re
 
 ## Phase 2 additions
 Fitness is the first real app in the frame (`src/apps/fitness/`). It keeps its own theme variables in `meta.js`, fills the frame with `flex: 1`, and talks to the old Shrexy backend. See `docs/apps/fitness.md`. The Fitness placeholder tests became real opens of `fitness-root`.
+
+## App settings (0.11.0)
+An app can have its own settings: add `settings: () => import("./Settings.jsx")` to its `meta.js`. The app frame then shows a **gear** in the top bar (`data-testid="app-settings"`) while that app is open. It opens the app's settings as a **panel over the app** (the app stays mounted underneath, so unsaved typing survives). The top bar title becomes "<App> settings", the gear hides, and the back arrow closes the panel. Apps without `settings` (Fitness today) are rendered exactly as before (no extra wrapper). First user: Golden Ratio (`docs/apps/goldenratio.md`).

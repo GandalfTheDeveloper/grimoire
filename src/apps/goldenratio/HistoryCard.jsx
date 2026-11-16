@@ -25,12 +25,12 @@ function Box({ field, entry, label, onHoldValue }) {
   );
 }
 
-export function valueCopyText(entry, field) {
-  if (entry.known === field) return copyText(entry.typed.trim(), entry.units[field]);
-  return copyText(formatMm(entry.mm[field], entry.units[field], { tape: entry.tape }).main, entry.units[field]);
+export function valueCopyText(entry, field, withUnit = true) {
+  if (entry.known === field) return copyText(entry.typed.trim(), entry.units[field], withUnit);
+  return copyText(formatMm(entry.mm[field], entry.units[field], { tape: entry.tape }).main, entry.units[field], withUnit);
 }
 
-export default function HistoryCard({ entry, swipe, onLoad, onCopy, onDelete }) {
+export default function HistoryCard({ entry, swipe, copyUnit = true, onLoad, onCopy, onDelete }) {
   const [dx, setDx] = useState(0);
   const g = useRef(null);
   const end = () => { if (g.current && g.current.timer) clearTimeout(g.current.timer); };
@@ -39,7 +39,7 @@ export default function HistoryCard({ entry, swipe, onLoad, onCopy, onDelete }) 
     const holdField = e.target.closest && e.target.closest("[data-hold]") ? e.target.closest("[data-hold]").getAttribute("data-hold") : null;
     g.current = { x: e.clientX, y: e.clientY, start: dx, moved: false, swiping: false, held: false, timer: null };
     if (holdField) g.current.timer = setTimeout(() => {
-      if (g.current && !g.current.moved) { g.current.held = true; if (navigator.vibrate) navigator.vibrate(15); onCopy(valueCopyText(entry, holdField)); }
+      if (g.current && !g.current.moved) { g.current.held = true; if (navigator.vibrate) navigator.vibrate(15); onCopy(valueCopyText(entry, holdField, copyUnit)); }
     }, HOLD_MS);
   };
   const move = (e) => {

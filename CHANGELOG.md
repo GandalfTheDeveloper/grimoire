@@ -17,6 +17,16 @@
 | Round of changes: bigger tablet tiles, Super Shrexy, tap a graph point, no zoom, and Super Shrexy on shared records (0.7.0 was built but never pushed; it is folded into this release) | 0.8.0 | 0.5.0 (Apps Script update needed) |
 | Round of changes: zoom and scroll the graphs by date, drag to reorder a day's exercises | 0.9.0 | 0.5.0 (unchanged: no Apps Script update) |
 | New app: Golden Ratio | 0.10.0 | 0.6.0 (Apps Script update needed) |
+| Golden Ratio round 2: scroll back down, Clear, settings | 0.11.0 | 0.7.0 (Apps Script update needed) |
+
+## App 0.11.0 / Backend 0.7.0 — Golden Ratio round 2
+- **Scroll back down to the fields:** on the history screen, scroll to the newest card and keep pulling to get the fields back (no need to tap the graphic). Only scrolling *up* opens the history screen now.
+- **Tapping the graphic clears every field** (what was on screen is saved to history first).
+- **Clear key** on the number pad (right column, above backspace): empties all three fields and keeps the pad open. Delete does the same on a computer keyboard.
+- **Golden Ratio settings** (gear in the top bar while the app is open): show or hide **Try demo mode**, and **Copy the unit too** on or off. Synced, so they match on every device.
+- Shell: any app can now have its own settings panel from the top bar (`meta.settings`). Apps without one are unchanged.
+- **Backend 0.7.0**: `Grim_App_goldenratio.gs` lists a second tab, `settings` (Sheet tab `goldenratio_settings`, one row, created automatically), and `Grim_Router.gs` reports 0.7.0. **Update the Apps Script before pushing the app.** Nothing else in the backend changed.
+- Spec: `docs/apps/goldenratio.md`. Device checks: `docs/device-tests.md` section K.
 
 ## App 0.10.0 / Backend 0.6.0 — Golden Ratio (first new app, Phase 4)
 - **Golden Ratio calculator** replaces the empty slot (same ID `goldenratio`). Type a, b or a+b; the other two are worked out live (white = typed, gold = calculated), up to 4 decimals. Units mm, cm, m, in, ft, ft-in on each field, converted automatically; they stay until 30 minutes without use, then go back to mm.
