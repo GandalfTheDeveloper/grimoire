@@ -2,21 +2,22 @@ import { ArrowLeft, Lock, Maximize2, Minimize2, Settings as Gear } from "lucide-
 import { vault } from "../core/index.js";
 import { useFullscreen } from "../core/fullscreen.js";
 import { useSyncExternalStore } from "react";
-import { getSyncStatus, subscribeSync } from "../core/syncStatus.js";
+import { getSyncStatus, subscribeSync, totalPending } from "../core/syncStatus.js";
 import { go } from "../core/useRoute.js";
 
 export function StatusDot() {
   const s = useSyncExternalStore(subscribeSync, getSyncStatus);
-  const amber = s.pending > 0;
+  const pending = totalPending(s);
+  const amber = pending > 0;
   return (
     <button
       className={"gr-dot" + (amber ? " amber" : "")}
       data-testid="status-dot"
-      aria-label={amber ? `${s.pending} items waiting on this device` : "Everything is in the Sheet"}
+      aria-label={amber ? `${pending} items waiting on this device` : "Everything is in the Sheet"}
       onClick={() => go("/diagnostics")}
     >
       <i />
-      {amber ? s.pending : null}
+      {amber ? pending : null}
     </button>
   );
 }

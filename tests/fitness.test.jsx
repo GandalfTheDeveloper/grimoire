@@ -3,7 +3,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, fireEvent, cleanup, act, waitFor } from "@testing-library/react";
 import App from "../src/shell/App.jsx";
-import { sync } from "../src/core/index.js";
+import { sync, data } from "../src/core/index.js";
+import { resetCore } from "./helpers/resetCore.js";
 import { setSyncStatus } from "../src/core/syncStatus.js";
 
 import { createBackend } from "./sim/sheetsSim.js";
@@ -36,6 +37,8 @@ function makeSheet({ down = false } = {}) {
 let startSpy, shrexy;
 const seedConn = () => window.localStorage.setItem("grimoire:sync:config", JSON.stringify({ url: URL_, key: KEY }));
 const seedSettings = seedConn;
+const waiting = () => data.dirtySnapshot().filter((r) => r.app === "fitness").length;
+const tab = (name) => shrexy.be.rows(`fitness_${name}`);
 const open = async () => { window.location.hash = "#/app/fitness"; render(<App />); return screen.findByTestId("fitness-root"); };
 
 beforeEach(async () => {
@@ -45,6 +48,7 @@ beforeEach(async () => {
   cleanup();
   await new Promise((r) => setTimeout(r, 50));
   window.localStorage.clear();
+  await resetCore();
   window.location.hash = "";
   setSyncStatus({ pending: 0, lastSync: null, errors: [], configured: false, lastError: null, backendVersion: null });
   setWidth(390);
@@ -60,7 +64,7 @@ describe("storage", () => {
     seedConn();
     shrexy.put("DailyLog", ["2026-11-01", 190, "Complete", "", "FALSE"]);
     await open();
-    await waitFor(() => expect(JSON.parse(window.localStorage.getItem("grimoire:fitness:dailyLog") || "[]").length).toBe(1));
+    await waitFor(() => expect(tab("daily").length).toBe(1));
     expect(window.localStorage.getItem("settings")).toBe(JSON.stringify({ apiUrl: "https://old.example/exec", apiKey: "OLDKEY" }));
     expect(window.localStorage.getItem("queue")).toBe(JSON.stringify([{ action: "logDaily", data: { Date: "2026-01-01" } }]));
     for (const k of Object.keys(window.localStorage)) if (!["settings", "queue"].includes(k)) expect(k.startsWith("grimoire:")).toBe(true);
@@ -91,42 +95,162 @@ describe("one connection for all of Grimoire", () => {
     fireEvent.change(await screen.findByPlaceholderText("body weight"), { target: { value: "190" } });
     fireEvent.click(screen.getByText("Save"));
     await waitFor(() => expect(screen.getByTestId("fitness-sync-msg").textContent).toMatch(/Grimoire's Settings/));
-    expect(JSON.parse(window.localStorage.getItem("grimoire:fitness:queue")).length).toBe(1);
+    expect(waiting()).toBe(1);
     expect(shrexy.calls.posts.length).toBe(0);
   });
-  it("a wrong key shows a plain message and keeps the edit queued", async () => {
+  it("a wrong key shows a plain message and keeps the edit waiting", async () => {
     window.localStorage.setItem("grimoire:sync:config", JSON.stringify({ url: URL_, key: "W".repeat(48) }));
     await open();
     fireEvent.change(await screen.findByPlaceholderText("body weight"), { target: { value: "190" } });
     fireEvent.click(screen.getByText("Save"));
     await waitFor(() => expect(screen.getByTestId("fitness-sync-msg").textContent).toMatch(/key was rejected/));
-    expect(JSON.parse(window.localStorage.getItem("grimoire:fitness:queue")).length).toBe(1);
+    expect(waiting()).toBe(1);
   });
 });
 
-describe("data matches the Sheet (the same tabs old Shrexy uses)", () => {
-  it("loads all four tabs, with dates and times repaired", async () => {
+describe("data moves from the old tabs into Grimoire's records (once)", () => {
+  it("reads the four old tabs once, repairs dates and times, and keeps them as OLD records (UpdatedAt 1)", async () => {
     seedConn();
     shrexy.put("DailyLog", ["2026-11-02", "188.4", "Partial", "• felt ok", "TRUE"]);
     shrexy.put("ExerciseLog", ["2026-11-02", "Bench", 1, 8, 135]);
     shrexy.put("RunLog", ["2026-11-01", 3.1, "32:15", "10:24"]);
     shrexy.put("CalendarNotes", ["2026-11-03", "pickleball"]);
     await open();
-    const get = (n) => JSON.parse(window.localStorage.getItem(`grimoire:fitness:${n}`) || "null");
-    await waitFor(() => expect(get("calendarNotes")).toEqual({ "2026-11-03": "pickleball" }));
-    expect(get("dailyLog")).toEqual([{ Date: "2026-11-02", Weight: 188.4, CompletionStatus: "Partial", Notes: "• felt ok", StatusManual: "TRUE" }]);
-    expect(get("exerciseLog")).toEqual([{ Date: "2026-11-02", ExerciseName: "Bench", SetNumber: 1, Reps: 8, Weight: 135 }]);
-    expect(get("runLog")).toEqual([{ Date: "2026-11-01", Distance: 3.1, Time: "32:15", Pace: "10:24" }]);
+    await waitFor(() => expect(tab("notes").length).toBe(1));
+    expect(tab("daily")).toMatchObject([{ Id: "d-2026-11-02", Date: "2026-11-02", Weight: "188.4", CompletionStatus: "Partial", Notes: "• felt ok", StatusManual: "TRUE", UpdatedAt: 1, Deleted: 0 }]);
+    expect(tab("exercise")).toMatchObject([{ Date: "2026-11-02", ExerciseName: "Bench", SetNumber: "1", Reps: "8", Weight: "135", UpdatedAt: 1 }]);
+    expect(tab("run")).toMatchObject([{ Date: "2026-11-01", Distance: "3.1", Time: "32:15", Pace: "10:24" }]);
+    expect(tab("notes")).toMatchObject([{ Id: "n-2026-11-03", Note: "pickleball" }]);
+    expect(shrexy.calls.gets).toBe(1);
   });
-  it("a phone save lands in the old DailyLog tab and clears the queue", async () => {
+  it("the old tabs are never written, and a second open does not read them again", async () => {
+    seedConn();
+    shrexy.put("DailyLog", ["2026-11-02", 188, "Partial", "", "FALSE"]);
+    await open();
+    await waitFor(() => expect(tab("daily").length).toBe(1));
+    cleanup(); await new Promise((r) => setTimeout(r, 30));
+    await open();
+    await screen.findByPlaceholderText("body weight");
+    await sync.syncNow("open");
+    expect(shrexy.calls.gets).toBe(1);
+    expect(shrexy.calls.posts.some((b) => b.action === "fitness_logBatch")).toBe(false);
+    expect(shrexy.be.rows("DailyLog")).toHaveLength(1);
+    expect(shrexy.be.rows("DailyLog")[0].Weight).toBe(188);
+  });
+  it("a phone save lands in the new fitness_daily tab with a stable id, and leaves the old DailyLog tab alone", async () => {
     seedConn();
     await open();
     fireEvent.change(await screen.findByPlaceholderText("body weight"), { target: { value: "187.5" } });
     fireEvent.click(screen.getByText("Save"));
-    await waitFor(() => expect(shrexy.all().dailyLog.length).toBe(1));
-    expect(shrexy.all().dailyLog[0]).toMatchObject({ Date: today(), Weight: 187.5, StatusManual: "FALSE" });
-    expect(shrexy.calls.posts.find((b) => b.action === "fitness_logBatch").items[0].action).toBe("logDaily");
-    await waitFor(() => expect(JSON.parse(window.localStorage.getItem("grimoire:fitness:queue"))).toEqual([]));
+    await waitFor(() => expect(tab("daily").length).toBe(1));
+    expect(tab("daily")[0]).toMatchObject({ Id: `d-${today()}`, Date: today(), Weight: "187.5", StatusManual: "FALSE", Deleted: 0 });
+    expect(tab("daily")[0].UpdatedAt).toBeGreaterThan(1);
+    expect(tab("daily")[0].SyncedAt).toBeGreaterThan(0);
+    expect(shrexy.be.rows("DailyLog")).toHaveLength(0);
+    await waitFor(() => expect(waiting()).toBe(0));
+  });
+  it("saving the same day again updates ONE record (never a second row); different sets are different records", async () => {
+    seedConn();
+    await open();
+    const w = await screen.findByPlaceholderText("body weight");
+    fireEvent.change(w, { target: { value: "186" } });
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(() => expect(tab("daily").length).toBe(1));
+    fireEvent.change(w, { target: { value: "185.5" } });
+    fireEvent.click(await screen.findByText("Save", {}, { timeout: 4000 }));
+    await waitFor(() => expect(tab("daily")[0].Weight).toBe("185.5"));
+    expect(tab("daily")).toHaveLength(1);
+  });
+});
+
+describe("Sheets cannot mangle what Super Shrexy writes", () => {
+  it("a note that starts with = or ', a run time like 32:15 and a leading-zero set label all come back exactly as typed", async () => {
+    seedConn();
+    await open();
+    await screen.findByPlaceholderText("body weight");
+    const { applyItems } = await import("../src/apps/fitness/data.js");
+    await applyItems([
+      { action: "logNote", data: { Date: "2026-11-05", Note: "=1+1" } },
+      { action: "logNote", data: { Date: "2026-11-06", Note: "'quoted" } },
+      { action: "logRun", data: { Date: "2026-11-07", Distance: "3.1", Time: "32:15", Pace: "10:24" } },
+      { action: "logDaily", data: { Date: "2026-11-08", Weight: "188.4", CompletionStatus: "Partial", Notes: "007", StatusManual: "TRUE" } },
+    ]);
+    await sync.syncNow("open");
+    const by = (t, id) => tab(t).find((r) => r.Id === id);
+    expect(by("notes", "n-2026-11-05").Note).toBe("=1+1");
+    expect(by("notes", "n-2026-11-06").Note).toBe("'quoted");
+    expect(by("run", "r-2026-11-07")).toMatchObject({ Time: "32:15", Pace: "10:24", Distance: "3.1" });
+    expect(by("daily", "d-2026-11-08")).toMatchObject({ Notes: "007", Weight: "188.4", StatusManual: "TRUE" });
+  });
+});
+
+describe("two devices share one record per thing (newest edit wins, only changes travel)", () => {
+  const record = (id, cols, updatedAt) => ({ id, createdAt: updatedAt, updatedAt, deleted: 0, schemaVersion: 1, cols });
+  const fromOtherDevice = (coll, fields, recs) => shrexy.be.post({ key: KEY, action: "sync", items: [{ app: "fitness", coll, fields, since: 0, pull: false, records: recs }] });
+  const DAILY = ["Date", "Weight", "CompletionStatus", "Notes", "StatusManual"];
+  it("a newer edit from another device replaces this device's older one on the screen", async () => {
+    seedConn();
+    await open();
+    const w = await screen.findByPlaceholderText("body weight");
+    fireEvent.change(w, { target: { value: "190" } });
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(() => expect(tab("daily").length).toBe(1));
+    fromOtherDevice("daily", DAILY, [record(`d-${today()}`, { Date: today(), Weight: "181", CompletionStatus: "Complete", Notes: "", StatusManual: "FALSE" }, Date.now() + 60000)]);
+    await sync.syncNow("open");
+    await waitFor(() => expect(screen.getByPlaceholderText("body weight").value).toBe("181")).catch(() => {});
+    expect(tab("daily")).toHaveLength(1);
+    expect(tab("daily")[0].Weight).toBe("181");
+    cleanup(); await open();
+    expect((await screen.findByPlaceholderText("body weight")).value).toBe("181");
+  });
+  it("an OLDER edit from another device never overwrites this device's newer one", async () => {
+    seedConn();
+    await open();
+    fireEvent.change(await screen.findByPlaceholderText("body weight"), { target: { value: "190" } });
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(() => expect(tab("daily").length).toBe(1));
+    fromOtherDevice("daily", DAILY, [record(`d-${today()}`, { Date: today(), Weight: "150", CompletionStatus: "None", Notes: "", StatusManual: "FALSE" }, 5)]);
+    await sync.syncNow("open");
+    expect(tab("daily")[0].Weight).toBe("190");
+  });
+  it("after the first sync, a sync with nothing new sends no records and downloads none", async () => {
+    seedConn();
+    await open();
+    fireEvent.change(await screen.findByPlaceholderText("body weight"), { target: { value: "190" } });
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(() => expect(waiting()).toBe(0));
+    await sync.syncNow("open");
+    const n = shrexy.calls.posts.length;
+    await sync.syncNow("open");
+    const last = shrexy.calls.posts.slice(n).filter((b) => b.action === "sync").pop();
+    const daily = last.items.find((i) => i.coll === "daily");
+    expect(daily.records).toHaveLength(0);
+    expect(daily.since).toBeGreaterThan(0);
+  });
+  it("plan edits sync: a day's workout list saved on another device shows up in Edit workouts here", async () => {
+    seedConn();
+    fromOtherDevice("plan", ["Key", "Rows"], [record("p-1-Monday", { Key: "1-Monday", Rows: JSON.stringify([{ ExerciseName: "Zercher Squat", TargetSets: "3", TargetReps: "5", ExerciseType: "weighted" }]) }, Date.now())]);
+    await open();
+    await sync.syncNow("open");
+    fireEvent.click(document.querySelector("svg.lucide-settings"));
+    fireEvent.click(await screen.findByText("Edit workouts"));
+    expect(await screen.findByDisplayValue("Zercher Squat")).toBeTruthy();
+  });
+  it("saving a plan edit writes it to fitness_plan, and Reset to default removes it (deleted flag, never erased)", async () => {
+    seedConn();
+    await open();
+    fireEvent.click(document.querySelector("svg.lucide-settings"));
+    fireEvent.click(await screen.findByText("Edit workouts"));
+    const first = (await screen.findAllByPlaceholderText("exercise name"))[0];
+    fireEvent.change(first, { target: { value: "Zercher Squat" } });
+    fireEvent.click(screen.getByText("Save for this day"));
+    await new Promise((r) => setTimeout(r, 50)); await sync.syncNow("open");
+    await waitFor(() => expect(tab("plan").length).toBe(1));
+    expect(tab("plan")[0]).toMatchObject({ Id: "p-1-Monday", Key: "1-Monday", Deleted: 0 });
+    expect(tab("plan")[0].Rows).toMatch(/Zercher Squat/);
+    fireEvent.click(screen.getByText("Reset to default"));
+    await new Promise((r) => setTimeout(r, 50)); await sync.syncNow("open");
+    await waitFor(() => expect(tab("plan")[0].Deleted).toBe(1));
   });
 });
 
@@ -169,56 +293,70 @@ describe("closing the app stops everything", () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
       seedConn();
-      window.localStorage.setItem("grimoire:fitness:settings", JSON.stringify({ refreshMinutes: 1 }));
       await open();
       await waitFor(() => expect(shrexy.calls.gets).toBeGreaterThan(0));
       fireEvent.click(screen.getByTestId("back"));
       await screen.findByTestId("home-grid");
       await act(async () => { await vi.advanceTimersByTimeAsync(10); });
-      const before = shrexy.calls.gets;
+      const before = shrexy.calls.posts.length;
       await act(async () => { await vi.advanceTimersByTimeAsync(10 * 60 * 1000); });
-      expect(shrexy.calls.gets).toBe(before);
+      expect(shrexy.calls.posts.length).toBe(before);
     } finally { vi.useRealTimers(); }
   });
 });
 
 describe("saving never loses an edit", () => {
-  it("an edit made offline survives leaving the app, and is re-sent when you return", async () => {
+  it("an edit made offline survives leaving the app, and is sent when you return", async () => {
     seedConn();
     shrexy = makeSheet({ down: true }); window.fetch = shrexy.fetch;
     await open();
     fireEvent.change(await screen.findByPlaceholderText("body weight"), { target: { value: "186" } });
     fireEvent.click(screen.getByTestId("back"));
     await screen.findByTestId("home-grid");
-    const q = JSON.parse(window.localStorage.getItem("grimoire:fitness:queue"));
-    expect(q.length).toBe(1);
-    expect(q[0].data).toMatchObject({ Date: today(), Weight: "186" });
+    await waitFor(() => expect(waiting()).toBe(1));
+    expect(JSON.parse(window.localStorage.getItem("grimoire:fitness:queue"))).toEqual([]); // saved as a record, so the quick journal is empty again
     shrexy = makeSheet(); window.fetch = shrexy.fetch;
     await open();
     fireEvent.click(await waitFor(() => document.querySelector("svg.lucide-refresh-cw")));
-    await waitFor(() => expect(shrexy.all().dailyLog.length).toBe(1));
-    expect(shrexy.all().dailyLog[0].Weight).toBe(186);
+    await waitFor(() => expect(tab("daily").length).toBe(1));
+    expect(tab("daily")[0].Weight).toBe("186");
+    await waitFor(() => expect(waiting()).toBe(0));
   });
-  it("leaving the app with unsent edits sends them in a last-chance keepalive request", async () => {
+  it("an edit still in the quick on-device journal (page closed mid-save) is recovered on the next open", async () => {
     seedConn();
+    window.localStorage.setItem("grimoire:fitness:queue", JSON.stringify([{ action: "logDaily", data: { Date: today(), Weight: "184", CompletionStatus: "None", Notes: "", StatusManual: "FALSE" } }]));
     await open();
-    fireEvent.change(await screen.findByPlaceholderText("body weight"), { target: { value: "185" } });
-    fireEvent.click(screen.getByTestId("back"));
-    await screen.findByTestId("home-grid");
-    await waitFor(() => expect(shrexy.calls.keepalive).toBe(1));
-    expect(shrexy.all().dailyLog[0]).toMatchObject({ Date: today(), Weight: 185 });
+    await waitFor(() => expect(tab("daily").length).toBe(1));
+    expect(tab("daily")[0].Weight).toBe("184");
+    expect(JSON.parse(window.localStorage.getItem("grimoire:fitness:queue"))).toEqual([]);
   });
-  it("sending the same edit twice (keepalive, then a normal sync) makes one row, not two", async () => {
+  it("a recovered journal item never undoes a newer edit that is already saved", async () => {
     seedConn();
+    window.localStorage.setItem("grimoire:fitness:queue", JSON.stringify([{ action: "logDaily", data: { Date: today(), Weight: "190", CompletionStatus: "None", Notes: "", StatusManual: "FALSE" } }]));
     await open();
-    fireEvent.change(await screen.findByPlaceholderText("body weight"), { target: { value: "184" } });
-    fireEvent.click(screen.getByTestId("back"));
-    await waitFor(() => expect(shrexy.calls.keepalive).toBe(1));
-    await open();
-    fireEvent.click(await waitFor(() => document.querySelector("svg.lucide-refresh-cw")));
-    await waitFor(() => expect(shrexy.calls.posts.filter((b) => b.action === "fitness_logBatch").length).toBeGreaterThanOrEqual(2));
-    expect(shrexy.all().dailyLog.length).toBe(1);
+    await waitFor(() => expect(tab("daily")[0]?.Weight).toBe("190"));
+    cleanup(); await new Promise((r) => setTimeout(r, 30));
+    const { applyItems, recoverJournal } = await import("../src/apps/fitness/data.js");
+    await applyItems([{ action: "logDaily", data: { Date: today(), Weight: "170" } }]);
+    const stale = { action: "logDaily", _t: Date.now() - 600000, data: { Date: today(), Weight: "190", CompletionStatus: "None", Notes: "", StatusManual: "FALSE" } }; // journaled ten minutes ago
+    window.localStorage.setItem("grimoire:fitness:queue", JSON.stringify([stale]));
+    await recoverJournal(); // 190 is older than what is saved now (170), so 170 stays
+    await sync.syncNow("open");
+    expect(tab("daily")[0].Weight).toBe("170");
   });
+  it("closing the app right after an edit still sends it (Grimoire's sync sends after each save)", async () => {
+    seedConn();
+    startSpy.mockRestore();
+    sync.start({ getOpenApp: () => "fitness" });
+    try {
+      await open();
+      fireEvent.change(await screen.findByPlaceholderText("body weight"), { target: { value: "185" } });
+      fireEvent.click(screen.getByTestId("back"));
+      await screen.findByTestId("home-grid");
+      await waitFor(() => expect(tab("daily").length).toBe(1), { timeout: 6000 });
+      expect(tab("daily")[0].Weight).toBe("185");
+    } finally { sync.stop(); }
+  }, 15000);
 });
 
 describe("layout inside Grimoire", () => {
@@ -228,7 +366,7 @@ describe("layout inside Grimoire", () => {
     expect(root.getAttribute("style")).not.toMatch(/100vh/);
     expect(screen.queryByText("Super Shrexy Tracker")).toBeNull();
     expect(screen.queryAllByLabelText(/full screen/i).length).toBeLessThanOrEqual(1);
-    expect(screen.getByTestId("topbar").textContent).toMatch(/Fitness/);
+    expect(screen.getByTestId("topbar").textContent).toMatch(/Super Shrexy/);
   });
   it("tablet opens Fitness in display mode (wall display) by default", async () => {
     setWidth(1000); seedConn();

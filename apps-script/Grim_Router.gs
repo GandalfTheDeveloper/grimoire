@@ -2,12 +2,13 @@
 // Everything here is prefixed grim / GRIM_ so it cannot collide with the old Shrexy script in the same project.
 // The key lives in Script Properties (GRIMOIRE_KEY), never in this file, and arrives in the request body.
 
-const GRIM_VERSION = "0.4.0";
+const GRIM_VERSION = "0.5.0";
 
 // One line per app. Add a new app = add its handler file + one line here, then deploy a new version.
 const GRIM_HANDLERS = {
   core: function () { return grimApp_core_(); },
   selftest: function () { return grimApp_selftest_(); },
+  fitness: function () { return grimApp_fitness_(); }, // Super Shrexy on shared records (0.5.0)
 };
 
 function doGet(e) {
@@ -35,7 +36,8 @@ function doPost(e) {
     if (body.action === "filedelete") return grimWithLock_(function () { return grimOut_(grimFileDelete_(body)); });
     if (body.action === "backup") return grimWithLock_(function () { return grimOut_(grimBackupNow_()); });
     if (body.action === "usage") return grimOut_(grimUsage_());
-    // Fitness (Phase 2b): its existing tabs, through Grimoire's one URL and key. See Grim_App_fitness.gs.
+    // Fitness' OLD tabs (DailyLog etc.), read once to import them into the new shared records, and still used by old Shrexy.
+    // Super Shrexy's own data now syncs through the normal "sync" action like every other app. See Grim_App_fitness.gs.
     if (body.action === "fitness_getAll") return grimWithLock_(function () { return grimOut_(grimFitGetAll_()); });
     if (body.action === "fitness_logBatch") return grimWithLock_(function () { return grimOut_(grimFitBatch_(body)); });
     return grimOut_({ ok: false, error: "bad_request" });

@@ -52,3 +52,6 @@ Reply per item: `{ acked, rejected, stale, records, cursor, more, resetCursor, b
 
 ## Round 3 additions
 Every collection has a plain and an `enc` twin; only the active side is pulled, dirty records are always sent, and the engine re-runs a round when the active set changes. Hooks: `onPageApplied`, `onAfterSync`, `setExtraPending`. See `docs/vault.md` and `docs/files.md`.
+
+## Fitness on shared records (app 0.8.0, backend 0.5.0)
+Super Shrexy (`fitness`) is a normal app on this engine: collections `daily`, `exercise`, `run`, `notes`, `plan` (tabs `fitness_<name>`), stable ids built from the natural key, newest `UpdatedAt` wins. The old tabs are read once for the import. See `docs/apps/fitness.md`, "Data format".

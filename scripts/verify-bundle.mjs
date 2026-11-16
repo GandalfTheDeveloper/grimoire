@@ -214,7 +214,7 @@ const keys = Object.keys(w.localStorage);
 // ---------- Phase 2: Fitness runs from the production bundle (catches declaration-order crashes that "build succeeded" hides) ----------
 w.location.hash = "#/app/fitness";
 check("Fitness opens from the built bundle and shows the phone entry screen", !!(await until(() => q("fitness-root") && w.document.querySelector('input[placeholder="body weight"]'), 8000)));
-check("Fitness leaves Grimoire's top bar in charge (one title, no second header)", /Fitness/.test(text("topbar")) && !/Super Shrexy Tracker/.test(text("frame-fitness")));
+check("Super Shrexy leaves Grimoire's top bar in charge (one title, no second header)", /Super Shrexy/.test(text("topbar")) && !/Super Shrexy Tracker/.test(text("frame-fitness")));
 click(q("back"));
 check("closing Fitness returns Home and unmounts it", !!(await until(() => q("home-grid") && !q("fitness-root"))));
 

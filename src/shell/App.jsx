@@ -3,7 +3,8 @@ import "./shell.css";
 import { slate, themeStyle } from "../core/theme.js";
 import { go, useRoute } from "../core/useRoute.js";
 import { loadAppsOnDevice, saveAppsOnDevice, loadOpenOnLaunch, saveOpenOnLaunch } from "../core/deviceSettings.js";
-import { requestPersistence } from "../core/storage.js";
+import { requestPersistence, getItem } from "../core/storage.js";
+import { setAppPending } from "../core/syncStatus.js";
 import { getApp, APPS } from "../apps/registry.js";
 import { initCore, registerAppCollections, sync } from "../core/index.js";
 import TopBar from "./TopBar.jsx";
@@ -20,6 +21,11 @@ export default function App() {
   const [openOnLaunch, setOpenOnLaunch] = useState(loadOpenOnLaunch);
   const launched = useRef(false);
   const openRef = useRef(null);
+
+  // Edits an app (Fitness) left waiting on this device count in the status dot from the moment Grimoire opens.
+  useEffect(() => {
+    APPS.forEach((a) => { const q = getItem(a.id, "queue", []); if (Array.isArray(q) && q.length) setAppPending(a.id, q.length); });
+  }, []);
 
   // Sync runs here in the shell, so switching apps never interrupts it. Stops when the shell unmounts.
   useEffect(() => {

@@ -18,8 +18,8 @@ export default function Home({ appIds }) {
             return (
               <button key={a.id} className="gr-tile" data-testid={`tile-${a.id}`} onClick={() => go(`/app/${a.id}`)}>
                 <span className="row">
-                  <Icon size={24} />
-                  {vault.isEncrypted(a.id) && <Lock size={14} aria-label="In the Vault" />}
+                  {a.iconSrc ? <img className="gr-tile-img" src={a.iconSrc} alt="" draggable={false} /> : <Icon className="gr-tile-icon" size={24} />}
+                  {vault.isEncrypted(a.id) && <Lock className="gr-tile-lock" size={14} aria-label="In the Vault" />}
                 </span>
                 <span className="name">{a.name}</span>
               </button>

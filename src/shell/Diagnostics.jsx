@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
-import { getSyncStatus, subscribeSync } from "../core/syncStatus.js";
+import { getSyncStatus, subscribeSync, totalPending } from "../core/syncStatus.js";
 import { allKeys } from "../core/storage.js";
 import { APPS } from "../apps/registry.js";
 import { deviceType } from "../core/device.js";
@@ -79,7 +79,7 @@ export default function Diagnostics() {
     ["Connection", s.configured ? (s.lastError ? `set up, last attempt failed` : "set up") : "not set up"],
     ["Backend version", s.backendVersion || "unknown until first sync"],
     ["Syncing now", s.syncing ? "yes" : "no"],
-    ["Items pending", String(s.pending)],
+    ["Items pending", String(totalPending(s))],
     ["Last sync", s.lastSync ? new Date(s.lastSync).toLocaleString() : "never"],
     ["Recent errors", s.errors.length ? s.errors.join("; ") : "none"],
     ["Row counts", countText],

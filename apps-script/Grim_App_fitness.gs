@@ -1,3 +1,17 @@
+// Grimoire backend, Fitness handler.
+//
+// 0.5.0: Super Shrexy's data is now ordinary Grimoire records (Id, UpdatedAt, SyncedAt, Deleted, SchemaVersion)
+// in the tabs fitness_daily, fitness_exercise, fitness_run, fitness_notes and fitness_plan, synced by the generic
+// engine in Grim_Core.gs (newest edit wins, only changes travel, deletes are flags). Nothing here interprets them.
+function grimApp_fitness_() {
+  return {
+    tabs: ["daily", "exercise", "run", "notes", "plan"],
+    files: false,
+  };
+}
+
+// ---- Everything below is the OLD format (Phase 2b), kept for two reasons: the app reads the old tabs ONCE
+// to import them into the new records, and old Shrexy keeps working against them until it is retired. ----
 // Grimoire backend, Fitness handler (Phase 2b). Fitness keeps its existing Sheet tabs and its existing
 // record shapes, so old Shrexy and Fitness keep reading and writing the same rows. The difference is the
 // door: Fitness now comes in through Grimoire's router (one URL, one key in Script Properties, key in the

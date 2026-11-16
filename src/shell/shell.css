@@ -13,8 +13,19 @@
 @media (min-width: 700px) { .gr-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 .gr-tile { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 14px; min-height: 96px; display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; text-align: left; }
 .gr-tile:active { background: var(--card-hover); }
-.gr-tile .row { display: flex; width: 100%; justify-content: space-between; color: var(--sub); }
+.gr-tile .row { display: flex; width: 100%; justify-content: space-between; align-items: flex-start; color: var(--sub); }
 .gr-tile .name { font-size: 15px; font-weight: 500; color: var(--ink); }
+.gr-tile-img { width: 36px; height: 36px; border-radius: 9px; display: block; }
+/* Tablet (same 700px cut-off as the rest of the app): big tiles with big icons, easy to hit from across a room. */
+@media (min-width: 700px) {
+  .gr-body { padding: 24px 22px calc(env(safe-area-inset-bottom) + 24px); }
+  .gr-grid { gap: 18px; }
+  .gr-tile { min-height: 210px; padding: 24px 22px; }
+  .gr-tile .gr-tile-icon { width: 72px; height: 72px; stroke-width: 1.6; }
+  .gr-tile .gr-tile-img { width: 84px; height: 84px; border-radius: 20px; }
+  .gr-tile .gr-tile-lock { width: 22px; height: 22px; }
+  .gr-tile .name { font-size: 22px; }
+}
 .gr-foot { margin-top: 22px; text-align: center; font-size: 12px; color: var(--dim); }
 .gr-empty { color: var(--sub); text-align: center; margin-top: 40px; line-height: 1.5; }
 .gr-section { font-size: 12px; color: var(--dim); text-transform: uppercase; letter-spacing: .6px; margin: 18px 4px 8px; }

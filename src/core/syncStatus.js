@@ -8,6 +8,7 @@ let state = {
   configured: false,
   backendVersion: null,
   lastError: null,
+  appPending: 0, // edits waiting inside apps that keep their own queue (Fitness), added to the dot
 };
 const listeners = new Set();
 
@@ -21,6 +22,13 @@ export function setSyncStatus(next) {
   state = { ...state, ...next };
   listeners.forEach((l) => l());
 }
+// Apps that keep their own queue report how many edits are waiting; the dot and Diagnostics add it to the sync engine's count.
+const appQueues = {};
+export function setAppPending(appId, n) {
+  appQueues[appId] = n;
+  setSyncStatus({ appPending: Object.values(appQueues).reduce((a, b) => a + b, 0) });
+}
+export const totalPending = (s) => s.pending + (s.appPending || 0);
 export function subscribeSync(fn) {
   listeners.add(fn);
   return () => listeners.delete(fn);
