@@ -37,6 +37,8 @@ function makeSheet({ down = false } = {}) {
 let startSpy, shrexy;
 const seedConn = () => window.localStorage.setItem("grimoire:sync:config", JSON.stringify({ url: URL_, key: KEY }));
 const seedSettings = seedConn;
+// A sync asked for while the app's own startup sync is running joins that run, which may have started before Grimoire knew Super Shrexy was open. Two in a row guarantees one that started after.
+const settle = async () => { await sync.syncNow("open"); await sync.syncNow("open"); };
 const waiting = () => data.dirtySnapshot().filter((r) => r.app === "fitness").length;
 const tab = (name) => shrexy.be.rows(`fitness_${name}`);
 const open = async () => { window.location.hash = "#/app/fitness"; render(<App />); return screen.findByTestId("fitness-root"); };
@@ -131,7 +133,7 @@ describe("data moves from the old tabs into Grimoire's records (once)", () => {
     cleanup(); await new Promise((r) => setTimeout(r, 30));
     await open();
     await screen.findByPlaceholderText("body weight");
-    await sync.syncNow("open");
+    await settle();
     expect(shrexy.calls.gets).toBe(1);
     expect(shrexy.calls.posts.some((b) => b.action === "fitness_logBatch")).toBe(false);
     expect(shrexy.be.rows("DailyLog")).toHaveLength(1);
@@ -175,7 +177,7 @@ describe("Sheets cannot mangle what Super Shrexy writes", () => {
       { action: "logRun", data: { Date: "2026-11-07", Distance: "3.1", Time: "32:15", Pace: "10:24" } },
       { action: "logDaily", data: { Date: "2026-11-08", Weight: "188.4", CompletionStatus: "Partial", Notes: "007", StatusManual: "TRUE" } },
     ]);
-    await sync.syncNow("open");
+    await settle();
     const by = (t, id) => tab(t).find((r) => r.Id === id);
     expect(by("notes", "n-2026-11-05").Note).toBe("=1+1");
     expect(by("notes", "n-2026-11-06").Note).toBe("'quoted");
@@ -196,7 +198,7 @@ describe("two devices share one record per thing (newest edit wins, only changes
     fireEvent.click(screen.getByText("Save"));
     await waitFor(() => expect(tab("daily").length).toBe(1));
     fromOtherDevice("daily", DAILY, [record(`d-${today()}`, { Date: today(), Weight: "181", CompletionStatus: "Complete", Notes: "", StatusManual: "FALSE" }, Date.now() + 60000)]);
-    await sync.syncNow("open");
+    await settle();
     await waitFor(() => expect(screen.getByPlaceholderText("body weight").value).toBe("181")).catch(() => {});
     expect(tab("daily")).toHaveLength(1);
     expect(tab("daily")[0].Weight).toBe("181");
@@ -210,7 +212,7 @@ describe("two devices share one record per thing (newest edit wins, only changes
     fireEvent.click(screen.getByText("Save"));
     await waitFor(() => expect(tab("daily").length).toBe(1));
     fromOtherDevice("daily", DAILY, [record(`d-${today()}`, { Date: today(), Weight: "150", CompletionStatus: "None", Notes: "", StatusManual: "FALSE" }, 5)]);
-    await sync.syncNow("open");
+    await settle();
     expect(tab("daily")[0].Weight).toBe("190");
   });
   it("after the first sync, a sync with nothing new sends no records and downloads none", async () => {
@@ -219,9 +221,9 @@ describe("two devices share one record per thing (newest edit wins, only changes
     fireEvent.change(await screen.findByPlaceholderText("body weight"), { target: { value: "190" } });
     fireEvent.click(screen.getByText("Save"));
     await waitFor(() => expect(waiting()).toBe(0));
-    await sync.syncNow("open");
+    await settle();
     const n = shrexy.calls.posts.length;
-    await sync.syncNow("open");
+    await settle();
     const last = shrexy.calls.posts.slice(n).filter((b) => b.action === "sync").pop();
     const daily = last.items.find((i) => i.coll === "daily");
     expect(daily.records).toHaveLength(0);
@@ -231,10 +233,10 @@ describe("two devices share one record per thing (newest edit wins, only changes
     seedConn();
     fromOtherDevice("plan", ["Key", "Rows"], [record("p-1-Monday", { Key: "1-Monday", Rows: JSON.stringify([{ ExerciseName: "Zercher Squat", TargetSets: "3", TargetReps: "5", ExerciseType: "weighted" }]) }, Date.now())]);
     await open();
-    await sync.syncNow("open");
+    await settle();
     fireEvent.click(document.querySelector("svg.lucide-settings"));
     fireEvent.click(await screen.findByText("Edit workouts"));
-    expect(await screen.findByDisplayValue("Zercher Squat")).toBeTruthy();
+    expect(await screen.findByDisplayValue("Zercher Squat", {}, { timeout: 4000 })).toBeTruthy();
   });
   it("saving a plan edit writes it to fitness_plan, and Reset to default removes it (deleted flag, never erased)", async () => {
     seedConn();
@@ -244,12 +246,12 @@ describe("two devices share one record per thing (newest edit wins, only changes
     const first = (await screen.findAllByPlaceholderText("exercise name"))[0];
     fireEvent.change(first, { target: { value: "Zercher Squat" } });
     fireEvent.click(screen.getByText("Save for this day"));
-    await new Promise((r) => setTimeout(r, 50)); await sync.syncNow("open");
+    await new Promise((r) => setTimeout(r, 50)); await settle();
     await waitFor(() => expect(tab("plan").length).toBe(1));
     expect(tab("plan")[0]).toMatchObject({ Id: "p-1-Monday", Key: "1-Monday", Deleted: 0 });
     expect(tab("plan")[0].Rows).toMatch(/Zercher Squat/);
     fireEvent.click(screen.getByText("Reset to default"));
-    await new Promise((r) => setTimeout(r, 50)); await sync.syncNow("open");
+    await new Promise((r) => setTimeout(r, 50)); await settle();
     await waitFor(() => expect(tab("plan")[0].Deleted).toBe(1));
   });
 });
@@ -341,7 +343,7 @@ describe("saving never loses an edit", () => {
     const stale = { action: "logDaily", _t: Date.now() - 600000, data: { Date: today(), Weight: "190", CompletionStatus: "None", Notes: "", StatusManual: "FALSE" } }; // journaled ten minutes ago
     window.localStorage.setItem("grimoire:fitness:queue", JSON.stringify([stale]));
     await recoverJournal(); // 190 is older than what is saved now (170), so 170 stays
-    await sync.syncNow("open");
+    await settle();
     expect(tab("daily")[0].Weight).toBe("170");
   });
   it("closing the app right after an edit still sends it (Grimoire's sync sends after each save)", async () => {
