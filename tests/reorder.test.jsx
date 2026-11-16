@@ -182,6 +182,10 @@ describe("the new order is the new default", () => {
     render(<App />);
     await screen.findByText("Test A");
     expect(names()).toEqual(["Test A", "Test B", "Test C"]);
+    // Let Super Shrexy finish loading before dragging. On a slow machine (GitHub Actions) the list can still
+    // re-render just after "Test A" first appears, and a drag started in that moment never reaches the list.
+    await act(async () => { await new Promise((r) => setTimeout(r, 300)); });
+    expect(names()).toEqual(["Test A", "Test B", "Test C"]);
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     fireEvent.mouseDown(bg(0), { button: 0, clientY: 150 });
     hold();
