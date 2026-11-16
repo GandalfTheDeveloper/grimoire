@@ -9,7 +9,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), "../../apps-script");
-export const GS_FILES = ["Grim_Router.gs", "Grim_Core.gs", "Grim_Files.gs", "Grim_Backup.gs", "Grim_App_core.gs", "Grim_App_selftest.gs", "Grim_App_fitness.gs"];
+export const GS_FILES = ["Grim_Router.gs", "Grim_Core.gs", "Grim_Files.gs", "Grim_Backup.gs", "Grim_App_core.gs", "Grim_App_selftest.gs", "Grim_App_fitness.gs", "Grim_App_goldenratio.gs"];
 
 const EPOCH_1899 = Date.UTC(1899, 11, 30);
 

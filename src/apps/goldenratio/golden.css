@@ -1,0 +1,75 @@
+/* Golden Ratio. Colors come from the theme in meta.js (never hard-coded here). */
+.gx { position: relative; flex: 1; min-height: 0; width: 100%; max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: 8px; padding: 8px 12px calc(env(safe-area-inset-bottom) + 10px); overflow: hidden; color: var(--ink); -webkit-user-select: none; user-select: none; }
+.gx button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+
+/* history */
+.gx-hist { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+.gx-spacer { flex: 1 1 auto; }
+.gx-typing .gx-hist { overflow: hidden; }
+.gx-empty { color: var(--sub); text-align: center; font-size: 14px; margin: 8px 0; }
+.gx-demolink { align-self: center; flex: 0 0 auto; font-size: 13px !important; color: var(--sub) !important; padding: 8px 10px !important; text-decoration: underline; }
+.gx-demobar { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--gx-gold); background: var(--card); border: 1px dashed var(--gx-gold); border-radius: 10px; padding: 7px 10px; }
+.gx-demobar button { font-size: 13px !important; text-decoration: underline; }
+
+.gx-cardwrap { position: relative; flex: 0 0 auto; border-radius: 12px; overflow: hidden; }
+.gx-del { position: absolute; inset: 0 0 0 auto; width: 88px; background: var(--gx-b) !important; color: var(--gx-on-b) !important; font-weight: 600; }
+.gx-card { position: relative; background: var(--card); border-radius: 12px; padding: 7px; display: flex; flex-direction: column; gap: 6px; touch-action: pan-y; transition: transform .15s ease-out; }
+.gx-cardrow { display: flex; gap: 6px; }
+.gx-box { display: flex; align-items: baseline; gap: 6px; min-width: 0; border: 2px solid; border-radius: 8px; padding: 5px 9px; background: var(--bg); }
+.gx-cardrow .gx-box-a { flex: 0 0 calc(61.8% - 3px); }
+.gx-cardrow .gx-box-b { flex: 1 1 0; }
+.gx-box-a { border-color: var(--gx-a); } .gx-box-b { border-color: var(--gx-b); } .gx-box-whole { border-color: var(--gx-whole); }
+.gx-blabel { font-family: Georgia, "Times New Roman", serif; font-style: italic; color: var(--sub); font-size: 14px; }
+.gx-bval { font-size: 17px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.gx-bval.gx-long { font-size: 14px; }
+.gx-box-b .gx-bunit { font-size: 12px; }
+.gx-bunit { margin-left: auto; color: var(--sub); font-size: 13px; flex: 0 0 auto; }
+.gx-typed { color: var(--gx-typed); }
+.gx-calc { color: var(--gx-gold); }
+.gx-exact { color: var(--sub); font-size: 12px; }
+
+/* graphic: same size on every screen */
+.gx-graphic { flex: 0 0 auto; display: block; width: 100%; height: 104px; }
+.gx-graphic svg { width: 100%; height: 100%; display: block; }
+.gx-glabel { font-family: Georgia, "Times New Roman", serif; font-style: italic; font-size: 24px; }
+
+/* fields */
+.gx-fields { flex: 0 0 auto; display: flex; flex-direction: column; gap: 7px; }
+.gx-field { display: flex; align-items: stretch; height: 54px; background: var(--card); border-radius: 0 10px 10px 0; border-left: 4px solid; }
+.gx-field-a { border-color: var(--gx-a); } .gx-field-b { border-color: var(--gx-b); } .gx-field-whole { border-color: var(--gx-whole); }
+.gx-field.active { box-shadow: inset 0 0 0 1.5px var(--gx-gold); }
+.gx-fval { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 0 12px; cursor: pointer; outline: none; }
+.gx-flabel { font-family: Georgia, "Times New Roman", serif; font-style: italic; color: var(--sub); font-size: 16px; width: 30px; flex: 0 0 auto; }
+.gx-fplace { color: var(--dim); font-size: 15px; }
+.gx-fnum { font-size: 21px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gx-selected { background: var(--gx-select); border-radius: 4px; padding: 0 3px; }
+.gx-caret { width: 2px; height: 24px; background: var(--gx-gold); margin-left: -8px; animation: gx-blink 1s steps(1) infinite; }
+@keyframes gx-blink { 50% { opacity: 0; } }
+.gx-unit { flex: 0 0 auto; width: 76px; margin: 9px 9px 9px 0; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 15px; padding: 0 6px; }
+
+.gx-toast { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom) + 14px); background: var(--gx-keypad); border: 1px solid var(--line); color: var(--ink); font-size: 14px; padding: 8px 14px; border-radius: 20px; z-index: 5; white-space: nowrap; max-width: 90%; overflow: hidden; text-overflow: ellipsis; }
+.gx-typing .gx-toast { bottom: auto; top: 10px; }
+
+/* number pad */
+.gx-keypad { flex: 0 0 auto; background: var(--gx-keypad); border-radius: 14px; padding: 6px; display: flex; flex-direction: column; gap: 6px; }
+.gx-krow { display: flex; gap: 5px; }
+.gx-kgrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.gx-key { height: 50px; border-radius: 10px; background: var(--gx-key) !important; font-size: 23px; display: flex; align-items: center; justify-content: center; touch-action: manipulation; }
+.gx-key:active { background: var(--card-hover) !important; }
+.gx-key-small { flex: 1; height: 40px; font-size: 16px; background: var(--gx-key2) !important; }
+.gx-key-small sup, .gx-key-small sub { font-size: 12px; }
+.gx-key-word { font-size: 16px; }
+.gx-key-fn { color: var(--sub) !important; }
+.gx-key-fn.on { background: var(--gx-gold) !important; color: var(--gx-on-gold) !important; }
+.gx-key-done { background: var(--gx-a) !important; color: var(--gx-on-a) !important; font-size: 18px; font-weight: 600; }
+.gx-key-blank { background: transparent !important; }
+.gx-copyrow { align-items: center; height: 40px; padding: 0 4px; font-size: 14px; color: var(--sub); gap: 8px; }
+.gx-chip { flex: 1; height: 36px; border-radius: 8px; border: 2px solid !important; font-family: Georgia, serif; font-style: italic; font-size: 17px; }
+.gx-chip-a { border-color: var(--gx-a) !important; } .gx-chip-b { border-color: var(--gx-b) !important; } .gx-chip-whole { border-color: var(--gx-whole) !important; }
+
+/* short screens: keep everything visible above the number pad */
+@media (max-height: 700px) {
+  .gx-graphic { height: 84px; }
+  .gx-field { height: 48px; }
+  .gx-key { height: 44px; }
+}

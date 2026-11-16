@@ -1,7 +1,7 @@
-import Placeholder from "../../shell/Placeholder.jsx";
-import { app } from "./meta.js";
+import GoldenCalculator from "./GoldenCalculator.jsx";
 
-// Empty app slot. The real app replaces this file when its build round happens.
+// Full-screen Golden Ratio inside Grimoire. The calculator itself is self-contained (see GoldenCalculator.jsx)
+// so another app can later open it as a pop-up without any change to it.
 export default function App() {
-  return <Placeholder app={app} />;
+  return <GoldenCalculator source="goldenratio" />;
 }

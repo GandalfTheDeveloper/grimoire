@@ -160,3 +160,47 @@ Do I1 and I2 on the tablet, I3 and I4 on the phone. The phone steps are the ones
 ### I4. Nothing else changed (phone)
 1. Tap **Save** on the entry screen. You should see **Saved ✓**.
 2. Tap the **overload** icon on a card: its popover should open and close as before.
+
+## J. App 0.10.0: Golden Ratio (after the Apps Script update)
+
+### J1. Opens and calculates (phone)
+1. On the Grimoire home screen, tap the **Golden Ratio** tile (gold spiral). You should see the a / b / a+b graphic and three fields, all set to **mm**, and no keyboard.
+2. Tap **Longer section (a)**. You should see Golden Ratio's own number pad at the bottom (not the iPhone keyboard), and the graphic still with its a, b and a+b labels.
+3. Type **10**. You should see b = **6.1803** and a+b = **16.1803** in gold, and 10 in white.
+4. Tap **Done**. You should see one history card above the graphic.
+5. Tap the **a+b** field (gold 16.1803) and type **5**. a should become **3.0902** and b **1.9098**. Tap **Done**: two cards.
+
+### J2. Units (phone)
+1. Set **a** to **in** and type **10** in a; set **b** to **mm**. b should be **156.9806**.
+2. Do two more calculations. The units should stay as you set them.
+3. Close Grimoire completely (swipe it away), open it again, open Golden Ratio within 30 minutes: units unchanged.
+4. Leave it alone for more than 30 minutes, open it again: everything back to **mm**.
+
+### J3. Tape measure (phone)
+1. Tap a field set to **mm**, then tap the **ruler** key. It turns gold, the field switches to **in**, and a row of ⅛ … ⅞ keys appears.
+2. Set **b** to **in**. Type **3** then tap **⅝**. a shows **3 5/8**, b shows **2 1/4** with **2.2404** in small grey text.
+3. Set all three to **ft-in**, tap a, type **5**, **'**, **3**, **½**. b should be **3' 3 1/4"** and a+b **8' 6 3/4"**.
+4. Tap the ruler key again: the fraction row goes away.
+
+### J4. The three screens (phone)
+1. With a few cards saved, tap a field: only the newest card shows at the top.
+2. Drag up or down on that card. The pad closes, the fields go away and the history fills the screen with the graphic at the bottom.
+3. Scroll through the history. Tap the **graphic**: back to the history, graphic and three fields.
+
+### J5. History (phone, then computer)
+1. Tap a card: its values and units load into the fields. No new card appears.
+2. Hold a value on a card for half a second: you should feel a buzz and see "Copied …". Paste it into Notes to check.
+3. In the history screen, swipe a card left and tap **Delete**: it disappears.
+4. Open Grimoire on your computer (Settings > Connection once, with the same script address and key, and turn on Golden Ratio in **Apps on this device**). Open Golden Ratio: the same history (without the deleted card) should be there within a minute or two.
+5. On the computer, click a field and type with the keyboard: digits, `.`, Backspace, Enter for Done.
+
+### J6. Demo mode (phone)
+1. In the history screen, scroll to the top and tap **Try demo mode**. You should see a gold "Demo mode" banner and 7 made-up cards.
+2. Do one calculation. It joins the demo cards.
+3. Tap **Clear demo data**. The banner goes away and your real history is back, without the demo calculation.
+
+### J7. Copy key (phone)
+1. Tap a field, type a value, tap the **Copy** key, then **b**. You should see "Copied … mm". Paste it somewhere to check.
+
+If anything doesn't match, tell me the step number and what you saw instead.
+

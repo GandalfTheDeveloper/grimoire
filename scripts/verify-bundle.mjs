@@ -218,6 +218,20 @@ check("Super Shrexy leaves Grimoire's top bar in charge (one title, no second he
 click(q("back"));
 check("closing Fitness returns Home and unmounts it", !!(await until(() => q("home-grid") && !q("fitness-root"))));
 
+// ---------- Golden Ratio (app 0.10.0, backend 0.6.0) ----------
+check("Golden Ratio tile shows the spiral icon", !!(q("tile-goldenratio") && q("tile-goldenratio").querySelector("img")));
+click(q("tile-goldenratio"));
+check("Golden Ratio opens on the default screen with the graphic and three mm fields", !!(await until(() => q("gx") && q("gx").dataset.mode === "default" && q("gx-graphic") && ["a", "b", "whole"].every((f) => q(`gx-unit-${f}`).value === "mm"), 8000)));
+click(q("gx-fval-a"));
+check("tapping a field opens Golden Ratio's own number pad", !!(await until(() => q("gx-keypad") && q("gx").dataset.mode === "typing")));
+for (const k of ["1", "0"]) click(q(`gx-key-${k}`));
+check("a = 10 gives b = 6.1803 and a+b = 16.1803 (gold)", !!(await until(() => text("gx-fnum-b") === "6.1803" && text("gx-fnum-whole") === "16.1803" && /gx-calc/.test(q("gx-fnum-b").className))), `${text("gx-fnum-b")} / ${text("gx-fnum-whole")}`);
+click(q("gx-done"));
+check("Done saves one history card", !!(await until(() => w.document.querySelectorAll('[data-testid="gx-card"]').length === 1)));
+check("the calculation reaches the (simulated) Sheet as goldenratio_history, typed value kept as text", !!(await until(() => backend.rows("goldenratio_history").length === 1 && backend.rows("goldenratio_history")[0].Typed === "10", 8000)), String(backend.rows("goldenratio_history").length));
+click(q("back"));
+check("closing Golden Ratio returns Home and unmounts it", !!(await until(() => q("home-grid") && !q("gx"))));
+
 check("every on-device storage key is prefixed grimoire:", keys.length > 0 && keys.every((k) => k.startsWith("grimoire:")), keys.join(", "));
 check("no page errors were logged", errors.length === 0, errors.slice(0, 3).join(" | "));
 
