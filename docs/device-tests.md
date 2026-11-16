@@ -122,3 +122,41 @@ Before you start: sync old Shrexy to zero pending on every device, and update th
 2. On the tablet: gear, **Edit workouts**. The change should be there. **Reset to default** on either device puts the original back on both after a sync.
 ### H4. Colors (phone and tablet, especially the real iPhone)
 1. Open the **Progress** slide's graphs: the lines and dots should be colored (turquoise, gold, red, white) exactly as before, and the buttons should be turquoise with dark text. If any graph looks black or colorless on the iPhone, tell me which one.
+
+## I. App 0.9.0: zoom the graphs and reorder exercises (no Apps Script update needed)
+Do I1 and I2 on the tablet, I3 and I4 on the phone. The phone steps are the ones that must be checked on the real iPhone.
+### I1. Zoom a graph (tablet)
+1. Open Grimoire. If an **Update available** banner shows, tap **Update now**. The **Build** line at the bottom of the home screen should say 0.9.0.
+2. Open **Super Shrexy**. Go to the **Progress** slide (tap its dot at the bottom, or the arrow on the right). Tap **Body weight**.
+3. Put two fingers on the graph, a little apart, and spread them apart. You should see the dates along the bottom get closer together (fewer days, more detail). **The numbers down the left side should not change.**
+4. Pinch the two fingers back together. You should see more dates again. Keep pinching: you should stop at the full range you started with, and not go wider.
+5. Zoom in again. Put one finger on the graph and drag left and right. You should see the dates scroll. Drag until it stops: you should not be able to scroll past your first or last day.
+6. While zoomed, drag across the graph. You should stay on the Progress slide (it should not swipe to another slide).
+7. While zoomed, tap **Run pace**, then tap **Body weight** again. You should see the full range again.
+8. Zoom in once more and wait for the slides to change on their own (or tap another slide's dot and come back). You should see the full range again.
+9. The page itself should never zoom bigger. If it does, tell me exactly where and with how many fingers.
+10. Tap **Lift progress**, wait for **B**, zoom and tap a dot. You should see its readout. Start to pinch: the readout should close.
+
+### I2. Zoom a graph (phone)
+1. Open **Super Shrexy**. On the entry screen, press and hold an exercise **name** (like Cable Rows) until its graph opens.
+2. Do steps 3 to 5 of I1 on that graph. You should see the same behavior. Tap **A**, then **B**: each should start on the full range.
+3. Tap the **X** to close it, open it again: it should start on the full range.
+4. Tap a text box on the entry screen: the page should still not zoom or jump bigger (the old no-zoom rule still holds).
+
+### I3. Reorder exercises (phone)
+1. In Super Shrexy, on the entry screen of a day with several exercises, put one finger on the **background of an exercise card**: for example the **Target 3×12** text, or the empty space to the right of **Add set**. Do not touch a box, a button, an icon or the exercise name.
+2. Keep holding for about half a second. You should feel a short buzz, and the card should lift slightly with a shadow.
+3. Without lifting, slide your finger down. You should see the card follow your finger up and down only (not sideways), and the cards it passes slide out of the way.
+4. Lift your finger when the card is where you want it. You should see it settle there, and the numbers you typed are still in the right cards.
+5. Close Super Shrexy and open it again. You should see the new order.
+6. Check **Week**: go to the Week view on the tablet (or open the **Today** slide). That day should list the exercises in the new order too.
+7. Scroll up and down with one finger on a card. You should see a normal scroll that does not move any card. Tap a box and type: it should work as before.
+8. With a long list (Sunday), hold a card and drag it to the very bottom of the screen and keep holding. You should see the list scroll by itself. Move the card to a spot far down and let go.
+9. Press and hold the exercise **name**: its graph should still open (that did not change).
+10. Wait a minute, then look at the same day on the tablet: it should have the new order.
+11. Gear, **Edit workouts**, pick that week and day, tap **Reset to default** if you want the original order back.
+12. If anything in 1 to 8 does not work (the page scrolls while you drag, the card does not lift, text gets selected, a menu pops up), tell me which step and on which device.
+
+### I4. Nothing else changed (phone)
+1. Tap **Save** on the entry screen. You should see **Saved ✓**.
+2. Tap the **overload** icon on a card: its popover should open and close as before.

@@ -3,6 +3,7 @@ import { ACCENT, CARD, GOLD, INK, LINE, RAINBOW, REDC, SHADOW_SOFT, SUB, WHITE_C
 import { formatSecondsClock, idxFull, idxLabel } from "./dates.js";
 import { statusColor } from "./logic.js";
 import { fmtLb } from "./analytics.js";
+import { effectiveView, panView, pinchView } from "./zoom.js";
 
 // ===================== SVG chart =====================
 export function niceTicks(min, max, count = 5) {
@@ -50,6 +51,12 @@ export function SvgChart({ series, left, right, xLabel, bands = [], refLines = [
   useEffect(() => { if (pin) pin(!!sel); }, [sel]);
   useEffect(() => () => { if (pin) pin(false); }, []);
   const [size, setSize] = useState({ w: 640, h: 300 });
+  // Zoom (x axis only): the window of days being shown, or null for the whole range. Lives only in this chart, so a new chart
+  // (another tab, A/B, lift or slide: they are all keyed by their parents) always starts on the full range.
+  const [view, setView] = useState(null);
+  const geom = useRef(null); // plot size and day range from the latest draw, for the touch handlers
+  const gest = useRef({ mode: "none", swallow: false, zoomedAtStart: false });
+  const noClickUntil = useRef(0); // a pinch or drag must not also count as a tap on a point
   const uid = ("c" + useId()).replace(/[^a-zA-Z0-9]/g, "");
   useEffect(() => {
     const el = wrapRef.current;
@@ -70,10 +77,17 @@ export function SvgChart({ series, left, right, xLabel, bands = [], refLines = [
     const W = size.w, H = size.h;
     const m = { l: left ? 64 : 16, r: right ? 64 : 16, t: 12, b: xLabel ? 48 : 30 };
     const pw = Math.max(10, W - m.l - m.r), ph = Math.max(10, H - m.t - m.b);
-    let tMin = Infinity, tMax = -Infinity;
-    allPts.forEach((p) => { tMin = Math.min(tMin, p.t); tMax = Math.max(tMax, p.t); });
-    if (tMax - tMin < 1) { tMin -= 1; tMax += 1; }
+    // The full range of days with data. Zooming can only ever look inside it.
+    let fMin = Infinity, fMax = -Infinity;
+    allPts.forEach((p) => { fMin = Math.min(fMin, p.t); fMax = Math.max(fMax, p.t); });
+    if (fMax - fMin < 1) { fMin -= 1; fMax += 1; }
+    const full = { a: fMin, b: fMax };
+    const vis = effectiveView(view, full);
+    const tMin = vis.a, tMax = vis.b; // what is on screen
+    const zoomed = tMin > fMin + 1e-6 || tMax < fMax - 1e-6;
+    geom.current = { left: m.l, pw, full, vis, zoomed };
     const xs = (t) => m.l + ((t - tMin) / (tMax - tMin)) * pw;
+    // The value axes are worked out from ALL the data, never from the window on screen, so zooming never moves them.
     const axisInfo = (side, cfg) => {
       if (!cfg) return null;
       const vals = [];
@@ -158,9 +172,10 @@ export function SvgChart({ series, left, right, xLabel, bands = [], refLines = [
     series.forEach((s, si) => {
       const ax = axisFor(s.axis);
       if (!ax || s.noTip || (anyDots && !s.dots)) return;
-      s.points.forEach((p) => { if (!p.dashed) targets.push({ si, t: p.t, x: xs(p.t), y: ax.ys(p.v) }); });
+      s.points.forEach((p) => { if (!p.dashed && p.t >= tMin && p.t <= tMax) targets.push({ si, t: p.t, x: xs(p.t), y: ax.ys(p.v) }); });
     });
     const onTap = (e) => {
+      if (Date.now() < noClickUntil.current) return;
       const r = e.currentTarget.getBoundingClientRect();
       const px = e.clientX - r.left, py = e.clientY - r.top;
       let best = null, bd = 30 * 30; // 30 px: big enough for a finger
@@ -168,7 +183,8 @@ export function SvgChart({ series, left, right, xLabel, bands = [], refLines = [
       setSel(best && sel && sel.si === best.si && sel.t === best.t ? null : best ? { si: best.si, t: best.t } : null);
     };
     const curSeries = sel ? series[sel.si] : null;
-    const curPoint = curSeries ? curSeries.points.find((p) => p.t === sel.t && !p.dashed) : null;
+    const found = curSeries ? curSeries.points.find((p) => p.t === sel.t && !p.dashed) : null;
+    const curPoint = found && found.t >= tMin && found.t <= tMax ? found : null; // a point scrolled out of view has no readout
     const curAx = curSeries ? axisFor(curSeries.axis) : null;
     let tip = null;
     if (curPoint && curAx) {
@@ -203,23 +219,69 @@ export function SvgChart({ series, left, right, xLabel, bands = [], refLines = [
       );
     }
 
+    // ---- pinch to zoom, drag to scroll (touch). The date range changes; the value axes don't. ----
+    const rectOf = (e) => e.currentTarget.getBoundingClientRect();
+    const pair = (e) => { const a = e.touches[0], b = e.touches[1], r = rectOf(e); return { dist: Math.max(1, Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY)), mid: (a.clientX + b.clientX) / 2 - r.left }; };
+    const onTouchStart = (e) => {
+      const g = geom.current, gs = gest.current;
+      if (!g) return;
+      if (e.touches.length >= 2) {
+        const { dist, mid } = pair(e);
+        const frac = Math.min(1, Math.max(0, (mid - g.left) / g.pw));
+        Object.assign(gs, { mode: "pinch", swallow: true, startVis: g.vis, startDist: dist, anchorT: g.vis.a + frac * (g.vis.b - g.vis.a) });
+        setSel(null);
+        e.stopPropagation();
+      } else {
+        Object.assign(gs, { mode: "one", swallow: false, panning: false, zoomedAtStart: g.zoomed, startX: e.touches[0].clientX - rectOf(e).left, startVis: g.vis });
+        if (g.zoomed) e.stopPropagation(); // a zoomed chart is dragged along, not swiped away to another slide
+      }
+    };
+    const onTouchMove = (e) => {
+      const g = geom.current, gs = gest.current;
+      if (!g) return;
+      if (gs.mode === "pinch" && e.touches.length >= 2) {
+        const { dist, mid } = pair(e);
+        setView(pinchView(gs.startVis, g.full, dist / gs.startDist, gs.anchorT, (mid - g.left) / g.pw));
+        e.stopPropagation();
+      } else if (gs.mode === "one" && e.touches.length === 1) {
+        const dx = e.touches[0].clientX - rectOf(e).left - gs.startX;
+        if (!gs.panning && g.zoomed && Math.abs(dx) > 6) { gs.panning = true; gs.swallow = true; setSel(null); }
+        if (gs.panning) setView(panView(gs.startVis, g.full, (-dx / g.pw) * (gs.startVis.b - gs.startVis.a)));
+        if (g.zoomed) e.stopPropagation();
+      }
+    };
+    const onTouchEnd = (e) => {
+      const g = geom.current, gs = gest.current;
+      const swallow = gs.swallow || gs.zoomedAtStart;
+      if (e.touches.length === 0) {
+        if (gs.swallow) noClickUntil.current = Date.now() + 400;
+        gest.current = { mode: "none", swallow: false, zoomedAtStart: false };
+      } else if (gs.mode === "pinch" && e.touches.length === 1 && g) {
+        // One finger lifted after a pinch: the other carries on as a drag from where it is.
+        Object.assign(gs, { mode: "one", panning: false, startX: e.touches[0].clientX - rectOf(e).left, startVis: g.vis });
+      }
+      if (swallow) e.stopPropagation();
+    };
+
     const axisText = (ax, side) => ax.ticks.map((v) => (
       <text key={`${side}t${v}`} x={side === "left" ? m.l - 8 : m.l + pw + 8} y={ax.ys(v)} fill={ax.cfg.color || SUB} fontSize={12} textAnchor={side === "left" ? "end" : "start"} dominantBaseline="middle">{ax.cfg.format ? ax.cfg.format(v) : v}</text>
     ));
     body = (<>
-      <svg data-testid="chart-svg" width={W} height={H} onClick={onTap} style={{ display: "block", cursor: "pointer", userSelect: "none", WebkitTapHighlightColor: "transparent" }}>
-        <defs>{defs}</defs>
+      <svg data-testid="chart-svg" width={W} height={H} onClick={onTap} onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} onTouchCancel={onTouchEnd} style={{ display: "block", cursor: "pointer", userSelect: "none", WebkitTapHighlightColor: "transparent", touchAction: "none" }}>
+        <defs>{defs}{zoomed && <clipPath id={`${uid}clip`}><rect x={m.l - 4} y={0} width={pw + 8} height={H} /></clipPath>}</defs>
         {bands.map((b, i) => { const ax = axisFor(b.axis); if (!ax) return null; const y1 = ax.ys(b.from), y2 = ax.ys(b.to); return <rect key={`b${i}`} x={m.l} width={pw} y={Math.min(y1, y2)} height={Math.abs(y2 - y1)} fill={b.color} opacity={0.12} />; })}
         {(L || R).ticks.map((v) => <line key={`g${v}`} x1={m.l} x2={m.l + pw} y1={(L || R).ys(v)} y2={(L || R).ys(v)} stroke={LINE} strokeDasharray="3 5" />)}
         {xt.map((t) => <line key={`gx${t}`} x1={xs(t)} x2={xs(t)} y1={m.t} y2={m.t + ph} stroke={LINE} strokeDasharray="3 5" opacity={0.6} />)}
         {refLines.map((r, i) => { const ax = axisFor(r.axis); if (!ax) return null; return <line key={`r${i}`} x1={m.l} x2={m.l + pw} y1={ax.ys(r.value)} y2={ax.ys(r.value)} stroke={SUB} strokeWidth={1.5} opacity={0.7} />; })}
-        {segs}
-        {curPoint && curAx && (
-          <g pointerEvents="none">
-            <line x1={xs(curPoint.t)} x2={xs(curPoint.t)} y1={m.t} y2={m.t + ph} stroke={INK} strokeDasharray="4 4" opacity={0.55} />
-            <circle cx={xs(curPoint.t)} cy={curAx.ys(curPoint.v)} r={(curSeries.dotR || 4) + 6} fill="none" stroke={INK} strokeWidth={2} />
-          </g>
-        )}
+        <g clipPath={zoomed ? `url(#${uid}clip)` : undefined} data-testid="chart-plot" data-view={`${tMin.toFixed(3)}:${tMax.toFixed(3)}`}>
+          {segs}
+          {curPoint && curAx && (
+            <g pointerEvents="none">
+              <line x1={xs(curPoint.t)} x2={xs(curPoint.t)} y1={m.t} y2={m.t + ph} stroke={INK} strokeDasharray="4 4" opacity={0.55} />
+              <circle cx={xs(curPoint.t)} cy={curAx.ys(curPoint.v)} r={(curSeries.dotR || 4) + 6} fill="none" stroke={INK} strokeWidth={2} />
+            </g>
+          )}
+        </g>
         {L && axisText(L, "left")}
         {R && axisText(R, "right")}
         {xt.map((t) => <text key={`xt${t}`} x={xs(t)} y={m.t + ph + 18} fill={SUB} fontSize={12} textAnchor="middle">{idxLabel(t)}</text>)}

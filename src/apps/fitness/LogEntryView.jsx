@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { ChevronLeft, ChevronRight, RefreshCw, Plus, Trash2 } from "lucide-react";
 import { ACCENT, BG, CARD, GOLD, INK, LINE, ON_ACCENT, ON_GOLD, ON_RED, REDC, SLATE, SUB } from "./theme.js";
-import { PLAN_DAYS, getEffectiveExercises, getWeekNumber, parseTargetSets } from "./plan.js";
+import { PLAN_DAYS, getEffectiveExercises, getWeekNumber, parseTargetSets, reorderPlanChanges } from "./plan.js";
 import { addDays, computePace, dayName, fmtDate, formatSecondsClock } from "./dates.js";
 import { computeAutoStatus, effectiveExerciseLog, getLastNoteForSameWeekday, getLastScheduledDate, isManualFlag, rowPlaceholder, statusColor } from "./logic.js";
 import { liftOutlook, liftStatusNow } from "./analytics.js";
 import { OverloadIcon, STATUS_OPTS, Segmented } from "./ui.jsx";
 import { ExerciseGraphModal, OverloadPopover } from "./modals.jsx";
+import { useReorder } from "./useReorder.js";
 
-export function LogEntryView({ date, setDate, anchorDate, dailyLog, exerciseLog, runLog, queue, planOverrides, isEditingHistorical, onDone, onSave, onSwipeSave, onLocalSave, onSync, syncing, pendingCount }) {
+export function LogEntryView({ date, setDate, anchorDate, dailyLog, exerciseLog, runLog, queue, planOverrides, onSavePlan, isEditingHistorical, onDone, onSave, onSwipeSave, onLocalSave, onSync, syncing, pendingCount }) {
   const wk = getWeekNumber(date, anchorDate);
   const dn = dayName(date);
   const dateStr = fmtDate(date);
@@ -40,6 +41,10 @@ export function LogEntryView({ date, setDate, anchorDate, dailyLog, exerciseLog,
   useEffect(() => () => cancelPress(), []);
 
   const isRestDay = planDay?.Type === "Rest";
+
+  // Long-press a card's background and drag it up or down: the new order is saved as this day's plan, so it becomes the default.
+  const listRef = useRef(null);
+  useReorder(listRef, (from, to) => { if (onSavePlan) reorderPlanChanges(planOverrides, wk, dn, from, to).forEach((c) => onSavePlan(c.key, c.rows)); }, () => setOverloadFor(null));
 
   const [status, setStatus] = useState(existingDaily?.CompletionStatus || "None");
   const [statusManual, setStatusManual] = useState(isManualFlag(existingDaily?.StatusManual));
@@ -215,7 +220,8 @@ export function LogEntryView({ date, setDate, anchorDate, dailyLog, exerciseLog,
 
   return (
     <div style={{ position: "relative", height: "100%" }}>
-    <div style={{ padding: "20px 20px calc(20px + env(safe-area-inset-bottom, 0px) + 100px) 20px", display: "flex", flexDirection: "column", gap: 18, overflowY: "auto", height: "100%", boxSizing: "border-box" }}>
+    <div ref={listRef} style={{ padding: "20px 20px calc(20px + env(safe-area-inset-bottom, 0px) + 100px) 20px", display: "flex", flexDirection: "column", gap: 18, overflowY: "auto", height: "100%", boxSizing: "border-box" }}>
+      <style>{`.ex-card{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}.ex-card input,.ex-card textarea{-webkit-user-select:text;user-select:text}`}</style>
       {isEditingHistorical && (
         <button onClick={onDone} style={{ display: "flex", alignItems: "center", gap: 4, alignSelf: "flex-start", fontSize: 13, color: SUB, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
           <ChevronLeft size={16} /> Back
@@ -241,12 +247,12 @@ export function LogEntryView({ date, setDate, anchorDate, dailyLog, exerciseLog,
         const ovStatus = liftStatusNow(effExerciseLog, ex.ExerciseName, dateStr, exRows, planOverrides, anchorDate);
         const ovColor = ovStatus ? ovStatus.color : SUB;
         return (
-          <div key={ex.ExerciseName} style={{ position: "relative", background: CARD, borderRadius: 10, padding: "12px 12px 12px 27px" }}>
+          <div key={ex.ExerciseName} data-excard="" className="ex-card" style={{ position: "relative", background: CARD, borderRadius: 10, padding: "12px 12px 12px 27px" }}>
             <div data-testid="bar-overload" style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 5, background: ovStatus ? ovStatus.color : "transparent", borderRadius: "10px 0 0 10px" }} title="Progressive overload" />
             <div data-testid="bar-ghost" style={{ position: "absolute", left: 5, top: 0, bottom: 0, width: 5, background: ghostColor }} title="Status last time" />
             <div data-testid="bar-today" style={{ position: "absolute", left: 10, top: 0, bottom: 0, width: 5, background: stripeColor }} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 8 }}>
-              <span data-testid="exercise-name" {...pressProps(ex.ExerciseName)} style={{ fontWeight: 600, fontSize: 14, color: stripeColor, userSelect: "none", WebkitUserSelect: "none", WebkitTouchCallout: "none", cursor: "pointer" }}>{ex.ExerciseName}</span>
+              <span data-testid="exercise-name" data-nodrag="" {...pressProps(ex.ExerciseName)} style={{ fontWeight: 600, fontSize: 14, color: stripeColor, userSelect: "none", WebkitUserSelect: "none", WebkitTouchCallout: "none", cursor: "pointer" }}>{ex.ExerciseName}</span>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
                 <button data-testid="overload-btn" aria-label={`${ex.ExerciseName} progressive overload breakdown`}
                   onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setOverloadFor((cur) => (cur && cur.name === ex.ExerciseName ? null : { name: ex.ExerciseName, up: r.bottom > window.innerHeight * 0.62 })); }}

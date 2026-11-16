@@ -137,3 +137,26 @@ export function getEffectiveExercises(overrides, wk, dn) {
   return PLAN_EXERCISES.filter((e) => e.Week === wk && e.DayOfWeek === dn).sort((a, b) => a.Order - b.Order);
 }
 export const DAYS_OF_WEEK = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+// ---- reordering the exercises of a day (long-press and drag on the entry screen) ----
+// One plan row as it is stored when a day's exercises are saved as an edit.
+export const planRow = (e) => ({ ExerciseName: e.ExerciseName, TargetSets: e.TargetSets, TargetReps: e.TargetReps, ExerciseType: e.ExerciseType || "weighted", ...(e.MuscleGroup ? { MuscleGroup: e.MuscleGroup } : {}) });
+
+// Moves the exercise at position `from` to position `to` for this week and day, as a saved plan edit, so it is the new default order.
+// Returns the edits to save: [{ key, rows }]. The other week's same day gets the same order when it has exactly the same exercises
+// (the two weeks share their lifts), keeping that week's own sets and reps; otherwise it is left alone.
+export function reorderPlanChanges(overrides, wk, dn, from, to) {
+  const cur = getEffectiveExercises(overrides, wk, dn);
+  if (from === to || from < 0 || to < 0 || from >= cur.length || to >= cur.length) return [];
+  const moved = (arr) => { const a = arr.slice(); const [x] = a.splice(from, 1); a.splice(to, 0, x); return a; };
+  const out = [{ key: planKey(wk, dn), rows: moved(cur).map(planRow) }];
+  const ow = wk === 1 ? 2 : 1;
+  const other = getEffectiveExercises(overrides, ow, dn);
+  const names = cur.map((e) => e.ExerciseName);
+  const same = new Set(names).size === names.length && other.length === cur.length && [...names].sort().join("\u0000") === other.map((e) => e.ExerciseName).sort().join("\u0000");
+  if (same) {
+    const byName = new Map(other.map((e) => [e.ExerciseName, e]));
+    out.push({ key: planKey(ow, dn), rows: moved(cur).map((e) => planRow(byName.get(e.ExerciseName))) });
+  }
+  return out;
+}

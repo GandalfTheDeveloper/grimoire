@@ -278,7 +278,7 @@ export default function WorkoutTracker() {
         </div>
       ) : (
         <div style={{ flex: "1 1 auto", minHeight: 0 }}>
-          <LogEntryView date={logDate} setDate={setLogDate} anchorDate={settings.anchorDate} dailyLog={dailyLog} exerciseLog={exerciseLog} runLog={runLog} queue={NO_QUEUE} planOverrides={planOverrides} isEditingHistorical={!!editContext} onDone={finishEdit} onSave={pushQueue} onSwipeSave={saveLocalAndSyncInBackground} onLocalSave={saveLocalOnly} onSync={(items) => pushQueue(items)} syncing={syncing} pendingCount={pending} />
+          <LogEntryView date={logDate} setDate={setLogDate} anchorDate={settings.anchorDate} dailyLog={dailyLog} exerciseLog={exerciseLog} runLog={runLog} queue={NO_QUEUE} planOverrides={planOverrides} onSavePlan={onSavePlanOverride} isEditingHistorical={!!editContext} onDone={finishEdit} onSave={pushQueue} onSwipeSave={saveLocalAndSyncInBackground} onLocalSave={saveLocalOnly} onSync={(items) => pushQueue(items)} syncing={syncing} pendingCount={pending} />
         </div>
       )}
 
