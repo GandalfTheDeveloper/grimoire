@@ -1,6 +1,6 @@
 # Grimoire Charter
 
-**Status: v1.4, updated 2026-11-15 (v1.0 approved 2026-11-09). Phase 0 (planning) and Phase 1 (shell + core) are complete. Phase 2 (Fitness nested) is built; Phase 2b (Fitness onto Grimoire's one connection) is next.** Every chat in this project follows this document. If a request conflicts with it, say so before proceeding. Changes to this charter happen only with Isaac's OK.
+**Status: v1.5, updated 2026-11-15 (v1.0 approved 2026-11-09). Phases 0, 1, 2, 2b and 2c are complete: Super Shrexy (Fitness) is nested in Grimoire, uses Grimoire's one connection and stores its data as shared records. Phase 3 (retire old Shrexy) is due about two weeks after 2026-11-15. New apps (Phase 4+) in the order Isaac chooses.** Every chat in this project follows this document. If a request conflicts with it, say so before proceeding. Changes to this charter happen only with Isaac's OK.
 
 ---
 
@@ -35,7 +35,7 @@
 A personal "one stop shop" PWA (installable website) that opens to a home screen of Isaac's mini-apps and tools. Primary device: iPhone 15 Pro Max (Safari, home-screen app). Secondary: Samsung Android tablet (Chrome), a wall display for Fitness. Each app declares which devices it supports (phone, tablet or both).
 
 - **Everything is an app.** There is no separate "tool" category. Even a simple app (e.g. the golden ratio calculator) may later get custom functionality that saves data, so every app is built on the same foundation and can use sync, files and the Vault whenever it needs them.
-- **Super Shrexy Tracker** (existing fitness app) becomes the first app, called **Fitness** inside Grimoire.
+- **Super Shrexy** (the existing fitness app) is the first app. **"Fitness", "Super Shrexy", "the Shrexy app" and "Super Shrexy app" all mean the same app** (internal ID `fitness`, folder `src/apps/fitness`, spec `docs/apps/fitness.md`). Claude understands any of them. "Old Shrexy" means the separate original app, repo and script, which is being retired.
 - Isaac decides build order, themes and features, one app at a time. Do not assume an order.
 
 ## 2. Working rules (every chat, always)
@@ -47,6 +47,7 @@ A personal "one stop shop" PWA (installable website) that opens to a home screen
 5. **Chat hygiene.** One chat per app or per round of changes. Start a fresh chat when a chat gets long or a feature is finished. **At the end of every session, update that app's spec** (decisions, reasons, rejected ideas, gotchas, open questions), delivered in the same zip as the code. History lookups use conversation search, pulling snippets, not re-reading whole chats. **Reminder rule:** if Isaac comes back to a chat that already finished a feature or round of changes and asks for more tweaks, Claude reminds him to open a new chat for that round (and offers to update the spec first so nothing is lost).
 6. **Direct, honest assessments.** Challenge assumptions, flag risks before building, and say plainly when something won't work.
 7. **Planning before building.** No new repos, scripts or folders until Isaac says a phase has started.
+8. **Old Shrexy retirement reminder.** The two-week run of Super Shrexy on shared records started 2026-11-15. **Whenever Isaac is working on Grimoire or Super Shrexy in any way on or after 2026-11-29, Claude reminds him once per chat that old Shrexy still needs to be retired (Phase 3: switch devices fully, freeze old Shrexy, retire the old site and the old script deployment and key, later delete the four old tabs), and offers to start it.** The reminder stops when Isaac says Phase 3 is done.
 
 ## 3. Architecture
 
@@ -55,7 +56,7 @@ A personal "one stop shop" PWA (installable website) that opens to a home screen
 | Code | New GitHub repo `grimoire` (same account) on GitHub Pages: `gandalfthedeveloper.github.io/grimoire`. Built by GitHub Actions on push to `main`. Local copy: `C:\Users\Brunn\Downloads\grimoire`. |
 | Old Shrexy | Repo and site stay untouched as a fallback. **Frozen** once Grimoire's build starts (emergencies only). Fixes happen in Grimoire's Fitness. Retire it after Fitness runs reliably on both devices for about 2 weeks. |
 | Data | Same Google Sheet. New apps get new tabs. Existing Shrexy tabs and columns are never renamed or removed. Before the first Apps Script change: File → Make a copy of the Shrexy Sheet. |
-| Backend | Same Apps Script project, **new deployment** with its own URL (old URL keeps running old code). One router, one handler file per app. **One URL and one key for all of Grimoire: no app ever has its own script address or key.** Fitness is served by `Grim_App_fitness.gs`, which speaks Fitness's existing actions on the existing tabs (see Phase 2b). The old Shrexy deployment is retired in Phase 3. |
+| Backend | Same Apps Script project, **new deployment** with its own URL (old URL keeps running old code). One router, one handler file per app. **One URL and one key for all of Grimoire: no app ever has its own script address or key.** Super Shrexy is registered in the router like any other app (`fitness`, tabs `fitness_daily`, `fitness_exercise`, `fitness_run`, `fitness_notes`, `fitness_plan`, backend 0.5.0). `Grim_App_fitness.gs` also keeps the old actions `fitness_getAll` and `fitness_logBatch` on the old tabs for the one-time import and for old Shrexy, until Phase 3. The old Shrexy deployment is retired in Phase 3. |
 | Key | New long random key for Grimoire, stored in Script Properties (not in code), sent in the request body (never the URL). |
 | Icons | New Grimoire home-screen icon on both devices. Old Shrexy icon stays until retired. Before switching: sync to zero pending, then enter URL and key once. |
 | Tech | React 18 + Vite + `lucide-react`. No unused dependencies. Code is split into small files. |
@@ -160,16 +161,17 @@ Supported from the start. They live in a "Grimoire Files" folder in Isaac's Driv
 | 1 | Shell + core (sync, storage, vault, files, diagnostics, home screen, service worker), fake data only. Grimoire's own look decided here. Includes new repo, Pages, Apps Script deployment and key, and the Sheet copy, all walked through click by click | Passes tests on iPhone and tablet, recovery drill passes |
 | 2 | Fitness nested with minimal changes (prefix storage, start/stop timers on mount, full-height container, header becomes sub-header). Runs alongside old Shrexy | Both devices match old Shrexy's data |
 | 2b | Fitness onto Grimoire's one connection. New Fitness handler in the Grimoire script (actions `fitness_getAll` and `fitness_logBatch` on the **existing** tabs, with the date/time protections, changed-rows-only writes, script lock). Fitness reads the URL and key from Grimoire's Connection setting; its own address and key boxes are removed. Tabs and columns are untouched (additive-only). Apps Script updated first, then the app | A device with only Grimoire's URL and key shows Fitness's data and saves reach the Sheet, on both devices, and old Shrexy's data still matches |
+| 2c | Super Shrexy onto the shared record format (app 0.8.0, backend 0.5.0): unique ids, UpdatedAt (newest wins), incremental sync, plan edits synced, small files, palette in theme tokens. Old tabs read once and imported; never written | Passed device checks on phone and tablet (2026-11-15) |
 | 3 | Switch devices to Grimoire, freeze then retire old Shrexy (the site and the old script deployment with its key) after about 2 weeks | Isaac says so |
 | 4+ | New apps one at a time, in the order Isaac chooses | Per app |
 
-**"Fix later" list for Fitness (not during nesting):** plan edits (`planOverrides`) sync across devices; pending-note overlay; incremental sync; plan data in the Sheet; split `WorkoutTracker.jsx`; remove unused `recharts`; remove stale nested `shrexy-tracker/` folder; confirm cycle-anchor stays hardcoded.
+**"Fix later" list for Fitness: all done** (Phases 2b and 2c). Remaining for Super Shrexy: Phase 3 (retire old Shrexy and later delete the four old tabs). The starting workout plan stays in the app code by design; only plan edits live in the Sheet.
 
 ## 9. App index
 
 | App | Vault | Notes |
 |---|---|---|
-| Fitness (Super Shrexy) | No (can be enabled later) | Existing. Spec: Handoff doc. Phone entry + tablet display. Own calendar. |
+| Super Shrexy (Fitness) | No (can be enabled later: its records are already in the shared format) | Existing. Spec: `docs/apps/fitness.md`. Phone entry + tablet display. Own calendar. |
 | Journal | **Yes** | Import from existing Google Doc, decided at build. |
 | Lists | **Yes** | Custom per-list functionality plus user-created lists; wish list, grocery, around-the-house, project lists, to-do, quotes. Details decided at build; the most complex app. |
 | Cookbook | No (TBD) | Uses macro data from the "Building a personal meal macro database" chat; pull the numbers into the cookbook's own data at build. Adds ingredients to grocery list. |
@@ -182,6 +184,7 @@ Supported from the start. They live in a "Grimoire Files" folder in Isaac's Driv
 1. ID and name. 2. Devices (phone, tablet, both). 3. Vault now, later, or never. 4. Dated items for a calendar feed? 5. Sheet tabs and columns (specs only, never data). 6. Cross-app connections needed. 7. Files/photos needed? 8. Own theme. 9. Create `docs/apps/<app>.md`. 10. Add to the index above.
 
 ## 11. Decision log
+- 2026-11-15 (v1.5): Phase 2c shipped (app 0.8.0, backend 0.5.0) and passed Isaac's device checks. Super Shrexy now stores shared records. **Deliberate choice: ids are built from the natural key** (`d-<date>`, `e-<date>-<hash of exercise>-<set>`, `r-<date>`, `n-<date>`, `p-<week>-<day>`) instead of random ids, so two devices editing the same day or set meet in one record. This supersedes the one-time exception in the v1.4 entry (Fitness no longer matches legacy columns; the old tabs are read once for the import, with UpdatedAt = 1, and never written). Old Shrexy stays on the old tabs and no longer sees new entries. Removed the sample-data button from Super Shrexy (it would now write into the real Sheet; the charter's demo-mode rule needs a separate demo store, to be added if wanted). Pinch-zoom is blocked on phone and tablet. Names "Fitness", "Super Shrexy" and "Shrexy app" are interchangeable. Isaac will run it for two weeks; Claude reminds him about retiring old Shrexy (rule 8, section 2).
 - 2026-11-15 (v1.4): Phase 2 shipped as app 0.5.0 (Fitness nested, still on the old Shrexy URL and key). Isaac asked for one URL and one key for everything and no per-app keys. Added Phase 2b (above) and the rule "no app has its own script address or key" to section 3. Retiring old Shrexy in Phase 3 now includes its script deployment and key. Phase 2b does not move Fitness onto the shared record format (IDs, UpdatedAt, incremental sync); that stays on the fix-later list. **One deliberate exception to section 4:** the Fitness handler reads and matches Fitness's own legacy columns (Date, ExerciseName, SetNumber), because the old tabs have no IDs. Until Fitness moves to the shared record format, it cannot be put in the Vault.
 - 2026-11-15 (v1.3): Phase 1 complete. Round 4 shipped app 0.4.0 (re-key, Check the Vault, recovery drill, photo test) and the written procedures `docs/lost-device.md`, `docs/rollback.md`, `docs/restore.md` and the standard test checklist `docs/device-tests.md`. Isaac confirmed the photo test, recovery drill and practice re-key passed on iPhone and tablet. Phase 2 (nest Fitness) is next.
 - 2026-11-15 (v1.2): Isaac's computer has no Node.js or npm, so no terminal block may contain `npm`, `node` or any build or test command. Builds and tests run in Claude's environment before each zip is sent, GitHub Actions builds on push, and Isaac confirms a green check on the Actions tab. The standard push block is `cd`; `git status`; `git add .`; `git commit`; `git push`. Replaces the earlier "stop on build failure" pattern, which could never run on his machine.
