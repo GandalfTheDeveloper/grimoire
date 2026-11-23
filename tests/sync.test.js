@@ -132,7 +132,7 @@ describe("saving never waits and never loses", () => {
     expect(d.data.pendingCount()).toBe(0);
     expect(sheetRows()).toHaveLength(3);
     expect(getSyncStatus().lastSync).toBeTruthy();
-    expect(getSyncStatus().backendVersion).toBe("0.7.0");
+    expect(getSyncStatus().backendVersion).toBe("0.8.0");
   });
   it("keeps edits when offline, reports it without leaking content, and catches up later", async () => {
     const d = makeDevice(backend);

@@ -160,6 +160,36 @@ check("a wrong passphrase is refused plainly", !!(await until(() => /didn't work
 type(q("vault-pass"), pass); click(q("vault-unlock-btn"));
 check("the right passphrase opens the app", !!(await until(() => q("placeholder-journal"), 8000)));
 
+// ---------- The Hoard, round B1 (app 0.12.0, backend 0.8.0): fake data only ----------
+w.location.hash = "#/app/budget";
+check("The Hoard opens (Vault unlocked) on Overview with its seven sections", !!(await until(() => q("hx-overview") && w.document.querySelectorAll('[role="tab"]').length === 7, 8000)));
+click(q("hx-tab-plan"));
+await until(() => q("plan-add-standard"));
+click(q("plan-add-standard"));
+check("an empty plan gets the six standard sections", !!(await until(() => q("line-add-Staples") && q("section-One-time/Annual"))));
+click(q("line-add-Staples"));
+await until(() => q("le-name"));
+type(q("le-name"), "Verify fake groceries"); type(q("le-amount"), "321");
+click(q("le-save"));
+check("a plan line is saved and shown in white (typed)", !!(await until(() => text("line-amount-Verify fake groceries") === "$321" && /hx-typed/.test(q("line-amount-Verify fake groceries").className))));
+check("it reaches the (simulated) Sheet only as budget_dataenc rows: envelope + scrambled Payload, no readable tab", !!(await until(() => backend.rows("budget_dataenc").length === 7, 8000))
+  && !backend.sheets.has("budget_data") && JSON.stringify(backend.headers("budget_dataenc")) === JSON.stringify(["Id", "CreatedAt", "UpdatedAt", "SyncedAt", "Deleted", "SchemaVersion", "Payload"])
+  && !JSON.stringify(backend.rows("budget_dataenc")).includes("Verify fake") && !JSON.stringify(backend.rows("budget_dataenc")).includes("321"), String(backend.rows("budget_dataenc").length));
+click(q("app-settings"));
+await until(() => q("hx-set-demo"));
+click(q("hx-set-demo"));
+click(q("back"));
+click(q("hx-tab-balances"));
+check("demo mode shows a year of made-up balances", !!(await until(() => q("hx-demo-banner") && q("bal-chart-net") && q("bal-chart-cash") && /\$/.test(text("bal-net")))));
+await sleep(300);
+check("demo mode wrote nothing to the Sheet", backend.rows("budget_dataenc").length === 7);
+click(q("app-settings"));
+await until(() => q("hx-clear-demo"));
+click(q("hx-clear-demo"));
+click(q("back"));
+click(q("hx-tab-plan"));
+check("Clear demo data brings the real plan back", !!(await until(() => q("line-Verify fake groceries") && !q("hx-demo-banner"))));
+
 w.location.hash = "#/settings";
 await until(() => q("vault-toggle-cookbook"));
 click(q("vault-toggle-cookbook"));

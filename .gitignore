@@ -1,2 +1,6 @@
 node_modules
 dist
+
+# The Hoard seed files hold personal values: never commit them (charter section 5)
+*hoard-seed*
+*.seed.json

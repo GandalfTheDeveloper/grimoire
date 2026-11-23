@@ -662,6 +662,6 @@ describe("backend 0.7.0: goldenratio_settings", () => {
     expect(rows[0].HideDemo).toBe("TRUE");
     expect(typeof rows[0].HideDemo).toBe("string");
     expect(rows[0].CopyUnit).toBe("drop");
-    expect(be.post({ key: KEY, action: "ping" }).version).toBe("0.7.0");
+    expect(be.post({ key: KEY, action: "ping" }).version).toBe("0.8.0");
   });
 });

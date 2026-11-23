@@ -159,6 +159,6 @@ describe("fitness_logBatch", () => {
     expect(call("fitness_getAll").error).toBe("busy");
   });
   it("leaves Grimoire's own sync untouched (version 0.4.0, ping still works)", () => {
-    expect(call("ping")).toMatchObject({ ok: true, version: "0.7.0" });
+    expect(call("ping")).toMatchObject({ ok: true, version: "0.8.0" });
   });
 });

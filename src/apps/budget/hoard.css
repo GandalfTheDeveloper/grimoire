@@ -1,0 +1,102 @@
+/* The Hoard. Colors only from the app theme (meta.js). Red = spending, blue = money in, gold = savings,
+   white = typed values. Works at phone, tablet and computer widths. */
+.hx { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.hx-scroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.hx-page { max-width: 860px; margin: 0 auto; padding: 12px 12px calc(env(safe-area-inset-bottom) + 28px); display: flex; flex-direction: column; gap: 12px; }
+.hx-tabs { display: flex; gap: 2px; overflow-x: auto; padding: 6px 8px; border-bottom: 1px solid var(--line); scrollbar-width: none; flex: 0 0 auto; }
+.hx-tabs::-webkit-scrollbar { display: none; }
+.hx-tabs button { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 10px; border-radius: 10px; color: var(--sub); font-size: 11px; min-width: 64px; }
+.hx-tabs button.on { color: var(--ink); background: var(--card); }
+@media (min-width: 700px) {
+  .hx-tabs { justify-content: center; }
+  .hx-tabs button { flex-direction: row; gap: 6px; font-size: 14px; padding: 8px 14px; }
+  .hx-page { padding: 18px 20px 32px; gap: 14px; }
+}
+.hx-demo { background: #E3B23C22; color: var(--hx-gold); font-size: 13px; padding: 7px 14px; text-align: center; border-bottom: 1px solid var(--line); }
+
+.hx-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; min-width: 0; }
+.hx-card > p { margin: 8px 0 0; }
+.hx-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.hx-card-head b { font-size: 16px; }
+.hx-right { display: flex; align-items: center; gap: 6px; }
+.hx-dim { color: var(--dim); font-size: 13px; line-height: 1.45; }
+.hx-center { text-align: center; }
+.hx-red { color: var(--hx-red); } .hx-blue { color: var(--hx-blue); } .hx-gold { color: var(--hx-gold); } .hx-typed { color: var(--hx-white); }
+.hx-badge { display: inline-block; font-size: 11px; color: var(--sub); border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; margin-left: 6px; font-weight: 400; vertical-align: 2px; }
+.hx-badges { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; }
+.hx-badges .hx-badge { margin-left: 0; }
+.hx-big { font-size: 30px; font-weight: 600; margin: 4px 0 8px; font-variant-numeric: tabular-nums; }
+.hx-big small { font-size: 13px; color: var(--sub); font-weight: 400; }
+
+.hx-month { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.hx-month-label { min-width: 170px; font-size: 17px; font-weight: 600; display: flex; flex-direction: column; align-items: center; padding: 4px 8px; }
+.hx-month-label small { font-size: 11px; color: var(--dim); font-weight: 400; }
+
+.hx-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.hx-tile { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.hx-tile span { font-size: 12px; color: var(--sub); }
+.hx-tile b { font-size: 18px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.hx-tile small { font-size: 11px; color: var(--dim); }
+@media (min-width: 700px) { .hx-tile { padding: 14px; } .hx-tile b { font-size: 24px; } }
+
+.hx-kv { display: grid; grid-template-columns: 1fr auto; gap: 6px 14px; margin: 0; font-size: 14px; }
+.hx-kv dt { color: var(--sub); } .hx-kv dt small { color: var(--dim); }
+.hx-kv dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.hx-kv3 { grid-template-columns: 1fr auto auto; }
+
+.hx-lines { display: flex; flex-direction: column; }
+.hx-line { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 2px; border-top: 1px solid var(--line); text-align: left; width: 100%; min-width: 0; }
+.hx-line:first-child { border-top: 0; }
+.hx-line-main { display: flex; flex-direction: column; min-width: 0; }
+.hx-line-name { font-size: 15px; overflow-wrap: anywhere; }
+.hx-line-main small, .hx-line-amt small { color: var(--dim); font-size: 12px; }
+.hx-line-amt { display: flex; flex-direction: column; align-items: flex-end; text-align: right; flex: 0 0 auto; font-variant-numeric: tabular-nums; max-width: 55%; }
+.hx-add { display: inline-flex; align-items: center; gap: 4px; color: var(--sub); font-size: 14px; padding: 8px 2px 0; }
+.hx-add-section { align-self: center; padding: 8px 14px; }
+.hx-linkbtn { color: var(--hx-gold) !important; text-decoration: underline !important; padding: 0 !important; }
+
+.hx-ovsec { border-top: 1px solid var(--line); }
+.hx-ovsec:first-of-type { border-top: 0; }
+.hx-ovrow { width: 100%; display: grid; grid-template-columns: 18px minmax(max-content, 8em) minmax(40px, 1fr) auto; align-items: center; gap: 8px; padding: 10px 0; text-align: left; }
+.hx-ovname { overflow-wrap: break-word; }
+.hx-ovamt { font-variant-numeric: tabular-nums; text-align: right; min-width: 70px; }
+.hx-track { position: relative; height: 8px; border-radius: 4px; background: var(--hx-track); display: block; }
+.hx-mark { position: absolute; top: -3px; width: 2px; height: 14px; border-radius: 1px; background: var(--hx-white); }
+.hx-ovlines { padding: 0 0 10px 26px; display: flex; flex-direction: column; gap: 6px; }
+.hx-ovline { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; }
+.hx-ovline small { display: block; color: var(--dim); font-size: 12px; }
+
+.hx-chart { margin: 0; max-width: 560px; width: 100%; }
+.hx-charts { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+@media (min-width: 1000px) { .hx-charts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.hx-chart figcaption { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; font-size: 14px; margin-bottom: 4px; }
+.hx-chart-title { font-weight: 600; }
+.hx-legend { display: flex; flex-wrap: wrap; gap: 4px 10px; color: var(--sub); font-size: 12px; }
+.hx-legend i, .hx-readout i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
+.hx-readout { min-height: 20px; font-size: 12px; color: var(--sub); display: flex; flex-wrap: wrap; gap: 4px 10px; margin-bottom: 4px; font-variant-numeric: tabular-nums; }
+.hx-readout b { color: var(--ink); }
+.hx-chart svg { width: 100%; height: auto; display: block; touch-action: pan-y; }
+
+.hx-backdrop { position: absolute; inset: 0; background: #000000aa; z-index: 30; display: flex; align-items: flex-end; justify-content: center; }
+.hx-sheet { background: var(--hx-sheet); border: 1px solid var(--line); border-radius: 16px 16px 0 0; width: 100%; max-height: 92%; display: flex; flex-direction: column; }
+@media (min-width: 700px) { .hx-backdrop { align-items: center; } .hx-sheet { border-radius: 16px; max-width: 560px; max-height: 88%; } }
+.hx-sheet-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 8px 8px 16px; border-bottom: 1px solid var(--line); }
+.hx-sheet-body { overflow-y: auto; padding: 12px 16px calc(env(safe-area-inset-bottom) + 18px); -webkit-overflow-scrolling: touch; }
+.hx-field { display: block; margin: 0 0 12px; }
+.hx-field > span { display: block; color: var(--sub); font-size: 12px; margin-bottom: 5px; }
+.hx-field > small { display: block; color: var(--dim); font-size: 12px; margin-top: 4px; }
+.hx-field input, .hx-field select, .hx-field textarea, .hx-monthinput select, .hx-incline input, .hx-incline select {
+  width: 100%; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; font: inherit; font-size: 16px; min-width: 0;
+}
+.hx-field input.hx-typed, .hx-incline input.hx-typed { color: var(--hx-white); font-variant-numeric: tabular-nums; }
+.hx-monthinput { display: flex; gap: 8px; }
+.hx-incline { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr) 32px; gap: 6px; align-items: center; margin-bottom: 6px; }
+.hx-seg { display: flex; flex-wrap: wrap; gap: 4px; }
+.hx-seg button { flex: 1 1 auto; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line) !important; font-size: 14px; color: var(--sub); }
+.hx-seg button.on { color: var(--ink); background: var(--card-hover); border-color: var(--hx-white) !important; }
+.hx-note-warn { color: var(--hx-gold); font-size: 13px; }
+.hx-history { font-size: 13px; color: var(--sub); border-top: 1px solid var(--line); margin-top: 8px; padding: 8px 0; display: flex; flex-direction: column; gap: 3px; }
+.hx-history b { color: var(--ink); font-size: 13px; }
+.hx-danger { color: var(--hx-red) !important; margin-top: 6px; }
+.hx-check { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; color: var(--sub); margin-bottom: 8px; }
+.hx-check input { width: 20px; height: 20px; flex: 0 0 auto; }

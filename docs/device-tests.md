@@ -250,3 +250,43 @@ Do I1 and I2 on the tablet, I3 and I4 on the phone. The phone steps are the ones
 7. Leave the tablet alone for longer than its normal screen timeout. The screen should stay on.
 
 If anything doesn't match, tell me the step number and what you saw instead.
+
+## M. App 0.12.0: The Hoard, round B1 (after the Apps Script update to 0.8.0). Demo and fake data only
+
+### M1. Versions (phone)
+1. Open **Grimoire**. If an **Update available** banner shows, tap **Update now**. At the bottom of the home screen, **Build** should start with **0.12.0**.
+2. Tap the **gear** on the home screen, find **Connection to your Sheet**, tap **Save and test**. You should see "Connected. Backend version 0.8.0." If it shows 0.7.0, the Apps Script deployment was not updated: redo that part first.
+
+### M2. Opens in the Vault (phone)
+1. On the home screen, the old **Budget** tile is now **The Hoard**, with a small **lock** on it.
+2. Tap it. If the Vault is locked, you should see the unlock screen first. Unlock.
+3. You should see seven sections across the top: **Overview, Plan, Transactions, Balances, Mortgage, Retirement, Goals**. On the phone, swipe the row sideways to reach the last ones. Transactions, Mortgage, Retirement and Goals say which round builds them.
+
+### M3. Demo mode (do on the phone, the tablet AND the computer)
+1. In The Hoard, tap the **gear** at the top right. You should see **The Hoard settings**.
+2. Tick **Demo mode**. Tap the **back arrow**. A gold **Demo mode** strip shows under the sections.
+3. **Overview:** In (blue), Spent (red), Saved (gold) for this month. Tap **Spending** to open its lines: **Air travel** says "Year to date: … planned of $1,200 a year".
+4. Scroll down: **12 months of plan** bars. Tap a bar: the line above the chart shows that month's In, Spent and Saved in words.
+5. Tap the **left arrow** next to the month five times. In (take-home) should drop: the demo has a raise four months ago.
+6. **Plan:** income with taxes and benefits, the totals, and six sections. Amounts you type are white. Tap **Groceries**: under **Changes** you should see two lines (400, then 450 from the raise month).
+7. **Balances:** Total cash, Investments, Net worth, eight demo accounts, and three charts.
+8. Nothing should spill off the right edge on any screen, and the panels (line editor, income, Update balances) should fit. On the computer, try a narrow and a wide window.
+9. Gear, tap **Clear demo data**. You should see "Demo data cleared. Real data was not touched." and the gold strip is gone.
+
+### M4. Real records, fake values: the security checklist (phone, then tablet). Must pass before the seed file goes in
+1. On the phone, open The Hoard (demo mode off). **Plan** tab. If it says **No plan yet**, tap **Add the six standard sections**.
+2. Under **Staples**, tap **+ Add line**. Name: `Test line`. Amount: `1`. Tap **Save**.
+3. Wait for the dot at the top right to turn green.
+4. On the computer, open your Grimoire **Google Sheet**. You should see a tab **budget_dataenc**. Its columns are only **Id, CreatedAt, UpdatedAt, SyncedAt, Deleted, SchemaVersion, Payload**, and every Payload is scrambled text starting with `g1.`. You should NOT see "Test line", "Staples" or any amount anywhere, and there should be **no** tab called **budget_data**. (Looking at your own Sheet is fine; don't send me a screenshot of it.)
+5. On the tablet, open Grimoire, open **The Hoard**, unlock with the passphrase from your **paper copy**. **Plan**: you should see the six sections and **Test line $1**.
+6. Tap back to the home screen, then open The Hoard again. It should ask for the passphrase again (the tablet relocks when you leave; a computer browser behaves the same).
+7. On the phone, tap **Test line**, scroll down, tap **Delete line (for mistakes)**, then tap it again. It disappears on both devices after the next sync.
+8. Run section **E** of this checklist (vault test, drill, Check the Vault, passphrase in two places, recent backup).
+9. Tell Claude "M4 passed" (or the step number and the words on screen if not). Only then import the seed file.
+
+### M5. Seed import (phone, after M4 passes)
+1. Save the seed file somewhere that is **not** inside `C:\Users\Brunn\Downloads\grimoire` (for example your Downloads folder itself), then get it onto the phone (AirDrop it to yourself or save it to iCloud Drive / Files).
+2. In The Hoard, tap the **gear**. Under **Import seed file (one time)**, tap **Choose File**, then **Browse** and pick the file.
+3. You should see "The file holds:" with counts of sections, plan line versions, income versions, accounts and sorting rules. Tap **Import**.
+4. You should see "Imported N records". Tap back. **Plan** should now show your own plan. Compare it line by line with the spreadsheet.
+5. Delete the seed file from the phone (Files app: press and hold it, **Delete**) and from the computer (and empty the Recycle Bin).
