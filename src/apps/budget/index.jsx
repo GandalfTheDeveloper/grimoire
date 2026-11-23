@@ -10,6 +10,7 @@ import Overview from "./Overview.jsx";
 import Plan from "./Plan.jsx";
 import Balances from "./Balances.jsx";
 import Later from "./Later.jsx";
+import Transactions from "./Transactions.jsx";
 
 export const SECTIONS = [
   ["overview", "Overview", LayoutDashboard], ["plan", "Plan", ListChecks], ["transactions", "Transactions", Receipt],
@@ -27,6 +28,7 @@ export default function App() {
   else if (error) body = <p className="gr-empty" data-testid="hx-error">{error}</p>;
   else if (tab === "overview") body = <Overview records={records} month={month} setMonth={setMonth} go={setTab} />;
   else if (tab === "plan") body = <Plan records={records} month={month} setMonth={setMonth} demoOn={demoOn} />;
+  else if (tab === "transactions") body = <Transactions records={records} month={month} setMonth={setMonth} demoOn={demoOn} />;
   else if (tab === "balances") body = <Balances records={records} month={month} setMonth={setMonth} />;
   else body = <Later section={tab} />;
 

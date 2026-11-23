@@ -1,6 +1,6 @@
 # The Hoard — budget app spec (`budget`)
 
-> **Status: approved by Isaac 2026-11-23 (charter v1.7). Round B1 built 2026-11-23 (app 0.12.0, backend 0.8.0): fake data only until device check M4 (security checklist) passes. B2 next.**
+> **Status: approved by Isaac 2026-11-23 (charter v1.7). Round B1 built 2026-11-23 (app 0.12.0, backend 0.8.0). Round B2 (imports) built 2026-11-23 (app 0.13.0, backend unchanged at 0.8.0). Fake data only until device check M4 (security checklist) passes. B3 next.**
 > This file lives in the **public** GitHub repo, so it never contains personal figures (income, balances, amounts, merchant names, account names or numbers). All of those are data, entered or imported in the app and stored encrypted in the Sheet. Examples below are generic.
 
 ---
@@ -128,10 +128,19 @@ Envelope per charter: `Id, CreatedAt, UpdatedAt, SyncedAt, Deleted, SchemaVersio
 | `income` | `effective, grossYear, checksPerYear, lines: [{ name, kind (tax / benefit), perCheck }]` | One record per version. Take-home per check = gross / checks − all lines; per month = per check × checks / 12 |
 | `account` | `name, kind, order, archived` | Kinds: checking, savings, card, brokerage, ira, hsa, k401, home, mortgage, otherAsset, otherDebt. Card, mortgage, otherDebt are owed (subtracted) |
 | `bal` | `accountId, month (yyyy-MM), amount` | Manual balance. Owed amounts typed positive. A month with no entry carries the latest earlier one forward (never backward) |
-| `rule`, `goal` | as given | Stored by the seed import now; read from B2 (rules) and B3 (goal inputs) |
+| `rule` | see 4.5 | Read by the B2 rules engine. Rules learned in the app add `on: "desc"` (match the short description) |
+| `goal` | as given | Stored by the seed import; read from B3 |
+| `profile` | `name, kind (spend / hist), headerKey, map { field: header }, sign (type / negativeOut / positiveOut / debitCredit), dateFmt (mdy / dmy)` | A column mapping saved from the mapper (B2). Recognised by the exact header row |
+| `acctmap` | `key, accountId` | Which app account a file's account text belongs to. Long digit runs are cut to `…1234` before saving; `accountId` "" = not one of my accounts |
+| `batch` | `at, files [{ kind, rows }], ranges [{ kind, name, accounts, from, to }], summary` | One import. Coverage ("no data" vs actual) comes from the `spend` ranges |
+| `idkey` | `secret` | One record, fixed id `hx-idkey-v1` (4.2) |
+| `bal` (automatic) | `accountId, month, amount, auto: true, asOf (yyyy-MM-dd)` | Month-end balance from a history file. Id = HMAC of `bal|account|month`. A typed `bal` for the same month wins |
+
+**Transaction record** (collection `tx`, type `tx`): `v, date, amount (positive), dir (out / in), desc, orig, bankCat, account, src (spend / hist), cls (history: paycheck / transfer / other), kind, lineId, splits [{ lineId, amount }], status (auto / review / manual), ruleId, choices [lineId], note, batch, histOnly, at`. `kind`: spend, refund (subtracted from its line), income, transfer, ignore (hidden but kept, so a re-import can't bring it back), matched (a history row the spending export covers). **A split is stored inside its one transaction record** (`splits`), not as separate part records (B2 decision, 5.4).
 
 ### 4.2 Record ids
-- **Transactions:** deterministic id = HMAC of `date | amount | original description | occurrence-within-file` with a key derived from the vault data key. Re-importing an overlapping file meets the same records (idempotent upsert), and the id reveals nothing without the vault.
+- **Transactions:** deterministic id = `t` + HMAC-SHA256 of `source | account | date | direction | amount | original description | occurrence-within-file`, cut to 24 characters. Re-importing an overlapping file meets the same records (they are skipped, never overwritten), and the id reveals nothing without the vault.
+- **The HMAC secret** is derived once from the vault data key (AES-GCM of a fixed block under a fixed IV, then SHA-256) and **stored as the encrypted `idkey` record**. Two devices that import before syncing derive the same secret; a later re-key (new data key) does not change it, so old files still meet their records. Demo mode uses a fixed made-up secret.
 - Everything else: random ids.
 
 ### 4.3 Import formats (headers only)
@@ -165,7 +174,7 @@ Ordered list. A rule matches on original description (contains / pattern), optio
 | Round | Scope | Done when |
 |---|---|---|
 | **B1** | App shell, vault records, Plan (income, sections, lines, cadence, effective dates), Balances (manual), Overview (plan only), demo mode, seed import | Seed imported on phone; plan matches the spreadsheet; demo passes on phone, tablet, computer |
-| **B2** | Imports (both formats + mapper), dedupe, transfers, refunds, rules engine, review list, splits, coverage/"no data", automatic balances, Overview plan vs actual | A demo quarter imports correctly; a real import reviewed on device |
+| **B2** | Imports (both formats + mapper), dedupe, transfers, refunds, rules engine, review list, splits, coverage/"no data", automatic balances, Overview plan vs actual | A demo quarter imports correctly; a real import reviewed on device. **Built 2026-11-23 (app 0.13.0); device checks pending** |
 | **B3** | Goals: Rivian port + progress tracker | Every typed number reproduced within rounding (or Isaac picked) |
 | **B4** | Retirement | Hand-checked scenarios match; save/pin works across devices |
 | **B5** | Mortgage (loan, escrow history, what-ifs, break-even) + market tab via Apps Script | Charter addition approved; chart shows real FRED history |
@@ -193,7 +202,37 @@ Ordered list. A rule matches on original description (contains / pattern), optio
 | Charts: thin bars and 2 px lines, one value axis, legend for 2+ series, tap a month for a readout in words | No value depends on color alone; works with touch |
 | The settings-panel seed import, not a Settings > Vault import | The Vault's Import/Export is a whole-app backup format; the seed is a hand-built file with its own checks |
 
-### 5.5 Rivian formula check (B3)
+### 5.3 What B2 built (app 0.13.0, backend unchanged)
+- **Transactions section:** Import CSV files (several at once, computer or phone Files picker); badges "Last import", "Data through", "N to review"; Sorting rules list (edit pattern or line, delete); review list; browse by month with section / account / search filters and "also show transfers and hidden".
+- **Import flow:** files recognised by header (both built-in formats, then saved profiles) → column mapper for an unknown layout (kind, how money out is shown, date order, one select per field, live preview of the first rows, name) → new account names asked once (existing account, new checking / savings / card, or not mine) → summary with editable date range per file → Save (progress line) → done.
+- **Rules engine** (`imports.js`): pattern (case-insensitive regex on Original Description; invalid regex read literally), `months`, `amountMin/Max`, `firstEachMonth` (seeded from stored rows), plus `account`, `days [from, to]` and `on: "desc"`; actions line / transfer / income / ignore / ask. Lowest `order` wins. Applied to new rows only.
+- **History rows:** Paycheck → income; Transfer → transfer, unless a rule puts it on a line (an investment transfer onto a Saving line counts as saving; if it is also in the spending export it is skipped); anything else matched against spending rows (same amount and direction, ±3 days, one to one) and skipped if found, else review as "only in account history". A later spending import that explains a waiting history-only row marks it `matched`.
+- **Review:** "ask" rows show their choices as buttons; others get a line picker; More… opens the editor (kind, line, split with a running "left to place", note). A manual sort offers **"Always put X here?"**: creates a rule on the short description placed before every other rule, and also sorts the other waiting rows with the same name (both directions).
+- **Actuals** (`actuals.js`): per line, section, unsorted; refunds subtract; splits land on each line; Saving sections are gold and never spending. Coverage per month (none / partial through a date / full) from the batches' spending ranges; months with none are "no data". Year-to-date per line with "under pace / on pace / over pace" (±10%).
+- **Overview:** actual In / Spent / Saved (with "plan $X" under each), section bars against white plan marks with an "over" label, line actuals, irregular lines' YTD pace, "Not sorted yet" row, 12-month actual chart (gaps for months not imported) above the plan chart, balance charts using automatic and derived balances.
+- **Saved:** change in (checking + savings − card owed) + money on Saving lines when every checking and savings account has a balance at both month ends; otherwise In − Spent, labelled "in − spent (no balances)".
+- **Balances:** automatic month-end checking/savings balances from history files (newest-first or oldest-first files both handled); card owed derived from charges since the last payment (a transfer into the card account) once one is seen; a typed balance for the month wins; the source is shown under each amount.
+- **Plan:** income card shows paychecks seen in imports for the month against the planned take-home per check.
+- **Demo:** "Import a made-up quarter" (demo mode) generates three fake files for the last three full months and adds demo rules and account mappings if an older demo store lacks them. Demo checking, savings and card balances for those months come from the files.
+- **Store:** `putBatch` writes many records one by one (each saved on the device at once) with one screen update and a re-read at the end.
+- `.gitignore` ignores `*.csv`.
+
+## 5.4 B2 decisions
+| Decision | Reasoning |
+|---|---|
+| The HMAC secret is derived from the vault key **and then stored** as an encrypted record, not re-derived each time | Re-deriving would change every id after a re-key (lost-device plan), so re-importing an old file would duplicate it. Stored once, re-key re-encrypts it like any record |
+| Splits live inside the transaction record (`splits`), not as separate part records | Keeps the one deterministic id per bank row, so a re-import still meets it; a split is edited as one thing |
+| Existing transactions are never overwritten by an import (a matching id is skipped, not upserted) | Manual edits always win; the bank row itself doesn't change |
+| Remove = hide (`kind: ignore`), no delete button | A deleted record would come back on the next import of an overlapping file |
+| The import's date range per file is editable, prefilled from the rows (snapped to the 1st if the first row is in days 1–5, to the month's end if the last row is in its last 5 days) | Coverage must come from what the export covered, not from rows; a quiet first day shouldn't make a month "partial" |
+| History rows that a rule puts on a line are checked against the spending export too | An investment transfer that also shows in the spending export would otherwise count twice |
+| Money-in history rows that aren't paychecks or transfers (interest, deposits) go to review as provisional refunds; the summary doesn't count them as refunds | Only Isaac knows whether they are income, a refund or a transfer |
+| "Always put X here?" makes a rule on the **short** description, ordered before all rules | Matches what Isaac sees on screen; a merchant sorted by hand should beat a broad starter pattern |
+| Pace labels "under / on / over pace" (±10%) instead of "ahead / behind" | "Ahead" is ambiguous for spending |
+| The 12-month actual chart's third bar is In − Spent | Balance-based saved needs balances for every month; the tile uses balances when it can |
+| Automatic balances show in plain ink, typed ones in white | White means typed; gold already means saving |
+
+## 5.5 Rivian formula check (B3)
 For each typed number on "What did it cost you" (all-in total, invested-instead table, untouched-years table, per-month figure), build the formula, compute at current inputs, and compare. Within ~1%: keep the formula. Further off: show Isaac both and he picks.
 
 ---
@@ -211,7 +250,11 @@ For each typed number on "What did it cost you" (all-in total, invested-instead 
 - **B1:** a hidden (closed) account keeps counting its last balance in net worth, carried forward. Enter 0 as its balance in the month it closed (the editor says so).
 - **B1:** a month with no balance entries for any account shows "–", not $0.
 - **B1:** the demo is regenerated relative to today only when demo mode is turned on with an empty demo store; after Clear demo data the next demo starts fresh.
-- The card balance owed is derived (charges since last card payment). Mid-cycle snapshots may be off until the next payment posts; manual override exists.
+- The card balance owed is derived (charges since last card payment). Mid-cycle snapshots may be off until the next payment posts; manual override exists. It is only derived once a card payment has been imported **in the spending export** (as money in on the card, sorted as a transfer). If card payments only appear in the checking history, keep typing the card balance.
+- **B2:** two identical charges on the same day (same amount and description) are both kept (occurrence in the file). If two overlapping files cut such a day differently, an extra copy can appear; hide it.
+- **B2:** a history row is matched to a spending row by amount and ±3 days only. Two different same-amount charges a few days apart can pair up wrongly; the review list and browse show everything, so a wrong pairing shows as a missing row.
+- **B2:** a fresh device that imports before the `idkey` record has synced down, after a re-key, would make different ids (duplicates). Sync once before importing on a new device.
+- **B2:** months inside a file's date range with no rows count as $0 spent, by design. Adjust the range in the summary if the export covered less.
 - The spending export might include card payments or transfers in some months (October had none). Rules must recognize them as transfers.
 - Accounts without exports (brokerage, robo account, HSA, 401(k)) depend on manual monthly balances.
 - **Open:** mortgage loan details entered at B5. Optional monthly market brief written by Claude as a separate doc (public data only), decided at B5.

@@ -191,40 +191,53 @@ export const accountsOf = (records, { includeArchived = false } = {}) =>
     .filter((a) => includeArchived || !a.archived)
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || String(a.name).localeCompare(String(b.name)));
 
-// The balance entry for one account and month (newest edit wins if two devices both entered one).
+// The MANUAL balance entry for one account and month (newest edit wins if two devices both entered one).
+// Automatic balances from account-history files (data.auto) are never edited here.
 export function balanceEntry(records, accountId, month) {
   let best = null;
   for (const r of ofType(records, "bal")) {
-    if (r.data.accountId !== accountId || r.data.month !== month) continue;
+    if (r.data.auto || r.data.accountId !== accountId || r.data.month !== month) continue;
     if (!best || (r.updatedAt || 0) > (best.updatedAt || 0)) best = r;
   }
   return best;
 }
 
-// Value of an account in `month`: that month's entry, or the latest earlier one carried forward.
-// Returns { amount, month (where it came from), carried } or null when there is nothing on or before it.
-export function balanceAt(records, accountId, month) {
+// Value of an account in `month`: that month's entry (a typed one beats an automatic one), else the derived
+// value (card owed, from charges since the last payment) when `derive` gives one, else the latest earlier
+// entry carried forward. Returns { amount, month (where it came from), carried, source, asOf } or null.
+// source: "manual" | "auto" (account history) | "derived".
+export function balanceAt(records, accountId, month, derive) {
   let best = null;
+  const better = (r, b) => {
+    if (r.data.month !== b.data.month) return r.data.month > b.data.month;
+    if (!r.data.auto !== !b.data.auto) return !r.data.auto; // typed wins over automatic in the same month
+    if (r.data.auto) return String(r.data.asOf || "") > String(b.data.asOf || "") || (String(r.data.asOf || "") === String(b.data.asOf || "") && (r.updatedAt || 0) > (b.updatedAt || 0));
+    return (r.updatedAt || 0) > (b.updatedAt || 0);
+  };
   for (const r of ofType(records, "bal")) {
     const d = r.data;
     if (d.accountId !== accountId || !isMonth(d.month) || d.month > month || typeof d.amount !== "number") continue;
-    if (!best || d.month > best.data.month || (d.month === best.data.month && (r.updatedAt || 0) > (best.updatedAt || 0))) best = r;
+    if (!best || better(r, best)) best = r;
   }
-  return best ? { amount: best.data.amount, month: best.data.month, carried: best.data.month !== month } : null;
+  if (best && best.data.month === month) return { amount: best.data.amount, month, carried: false, source: best.data.auto ? "auto" : "manual", asOf: best.data.asOf || "" };
+  const dv = derive ? derive(accountId, month) : null;
+  if (dv) return { amount: dv.amount, month, carried: false, source: "derived", asOf: dv.since || "" };
+  return best ? { amount: best.data.amount, month: best.data.month, carried: true, source: best.data.auto ? "auto" : "manual", asOf: best.data.asOf || "" } : null;
 }
 
 export const balanceMonths = (records) => [...new Set(ofType(records, "bal").map((r) => r.data.month).filter(isMonth))].sort();
 
 // Totals for a month. Amounts owed are entered as positive numbers and subtracted.
-export function balanceTotals(records, month) {
-  const t = { cash: 0, invest: 0, netWorth: 0, any: false, byAccount: {} };
+export function balanceTotals(records, month, derive) {
+  const t = { cash: 0, invest: 0, netWorth: 0, any: false, byAccount: {}, fresh: {} };
   for (const a of accountsOf(records, { includeArchived: true })) {
     const k = ACCOUNT_KINDS[a.kind] || ACCOUNT_KINDS.otherAsset;
-    const b = balanceAt(records, a.id, month);
+    const b = balanceAt(records, a.id, month, derive);
     if (!b) continue;
     t.any = true;
     const v = k.sign * b.amount;
     t.byAccount[a.id] = b.amount;
+    t.fresh[a.id] = !b.carried;
     if (k.group === "cash") t.cash += v;
     if (k.group === "invest") t.invest += v;
     t.netWorth += v;
@@ -233,11 +246,11 @@ export function balanceTotals(records, month) {
   return t;
 }
 
-export function balanceSeries(records, month, count = 12) {
+export function balanceSeries(records, month, count = 12, derive) {
   const out = [];
   for (let i = count - 1; i >= 0; i--) {
     const m = addMonths(month, -i);
-    out.push({ month: m, ...balanceTotals(records, m) });
+    out.push({ month: m, ...balanceTotals(records, m, derive) });
   }
   return out;
 }

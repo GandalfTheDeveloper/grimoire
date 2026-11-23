@@ -17,14 +17,24 @@
 //            { effective, grossYear, checksPerYear, lines: [{ name, kind: "tax" | "benefit", perCheck }] }
 //   account  { name, kind (see ACCOUNT_KINDS in plan.js), order, archived }
 //   bal      a manual balance: { accountId, month: "YYYY-MM", amount }  (owed amounts entered as positive)
-//   rule     a sorting rule (used from round B2; may arrive early in the seed file)
+//   rule     a sorting rule (spec 4.5): { order, pattern, action, months?, amountMin?, amountMax?,
+//            firstEachMonth?, account?, days?, on? ("desc" = test the short description), note? }
 //   goal     goal-tool inputs (used from round B3; may arrive early in the seed file)
+//   profile  a saved column mapping for a bank file the app did not recognise:
+//            { name, kind: "spend" | "hist", headerKey, map: { field: header }, sign, dateFmt }
+//   acctmap  which app account a file's account belongs to: { key (account text, long numbers cut to the
+//            last four), accountId }
+//   batch    one import: { at, files: [{ kind, rows }], ranges: [{ kind, name, accounts, from, to }], summary }
+//   idkey    the secret transaction ids are made with (spec 4.2): { secret }. One record, fixed id.
+// Type in "tx": tx (see actuals.js for its fields).
 export const RECORD_FIELDS = { Type: "text", Data: "json" };
 export const COLLECTIONS = [
   { name: "data", fields: RECORD_FIELDS },
   { name: "tx", fields: RECORD_FIELDS },
 ];
-export const TYPES = ["section", "linev", "income", "account", "bal", "rule", "goal"];
+export const TYPES = ["section", "linev", "income", "account", "bal", "rule", "goal", "profile", "acctmap", "batch", "idkey", "tx"];
+// Which collection a record type lives in.
+export const collOf = (type) => (type === "tx" ? "tx" : "data");
 
 export const fromRecord = (r) => ({ id: r.id, type: r.Type, data: r.Data && typeof r.Data === "object" ? r.Data : {}, createdAt: r.createdAt, updatedAt: r.updatedAt });
 export const toFields = (type, data) => ({ Type: type, Data: data });

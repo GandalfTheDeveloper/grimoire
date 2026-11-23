@@ -1,7 +1,8 @@
-// Balances (round B1: manual). One balance per account per month, typed in on "Update balances".
-// A month without an entry carries the last one forward (shown as "from <month>"). Amounts owed (card,
-// mortgage) are typed as positive numbers and subtracted. Automatic checking/savings balances from the
-// account-history files arrive with imports (round B2).
+// Balances. One balance per account per month. Checking and savings fill in automatically from imported
+// account-history files (the last balance of the month seen); a card's balance owed is worked out from the
+// charges since its last payment once a payment has been imported. Anything typed on "Update balances" wins
+// for that month. A month without an entry carries the last one forward (shown as "from <month>"). Amounts
+// owed (card, mortgage) are typed as positive numbers and subtracted.
 import { useMemo, useState } from "react";
 import { Plus, Pencil } from "lucide-react";
 import { put, remove } from "./store.js";
@@ -9,14 +10,16 @@ import { ACCOUNT_KINDS, accountsOf, balanceAt, balanceEntry, balanceSeries, bala
 import { fmt, parseMoney, editText } from "./money.js";
 import { MonthPicker, Sheet, Field } from "./ui.jsx";
 import { LineChart } from "./Chart.jsx";
+import { makeDerive } from "./actuals.js";
 
 const LINE_COLORS = ["#2FD9C0", "#E3B23C", "#F4F7F6", "#8FB8FF", "#C79BFF", "#7FD47F"];
 
 export default function Balances({ records, month, setMonth }) {
   const accounts = useMemo(() => accountsOf(records), [records]);
   const all = useMemo(() => accountsOf(records, { includeArchived: true }), [records]);
-  const totals = useMemo(() => balanceTotals(records, month), [records, month]);
-  const series = useMemo(() => balanceSeries(records, month, 12), [records, month]);
+  const derive = useMemo(() => makeDerive(records), [records]);
+  const totals = useMemo(() => balanceTotals(records, month, derive), [records, month, derive]);
+  const series = useMemo(() => balanceSeries(records, month, 12, derive), [records, month, derive]);
   const [updating, setUpdating] = useState(false);
   const [editAcct, setEditAcct] = useState(null);
   const invest = accounts.filter((a) => (ACCOUNT_KINDS[a.kind] || {}).group === "invest");
@@ -38,14 +41,16 @@ export default function Balances({ records, month, setMonth }) {
         {accounts.length === 0 && <p className="hx-dim">No accounts yet. Add your checking, savings, card and the rest, or import your seed file.</p>}
         <div className="hx-lines">
           {accounts.map((a) => {
-            const b = balanceAt(records, a.id, month);
+            const b = balanceAt(records, a.id, month, derive);
             const owed = (ACCOUNT_KINDS[a.kind] || {}).sign === -1;
             return (
               <button key={a.id} className="hx-line" data-testid={`acct-${a.name}`} onClick={() => setEditAcct(a)}>
                 <span className="hx-line-main"><span className="hx-line-name">{a.name}</span><small>{(ACCOUNT_KINDS[a.kind] || ACCOUNT_KINDS.otherAsset).label}</small></span>
                 <span className="hx-line-amt">
-                  <span className={b && !b.carried ? "hx-typed" : "hx-dim"} data-testid={`acct-amt-${a.name}`}>{b ? `${owed ? "−" : ""}${fmt(b.amount)}` : "no data"}</span>
+                  <span className={b && !b.carried ? (b.source === "manual" ? "hx-typed" : "") : "hx-dim"} data-testid={`acct-amt-${a.name}`}>{b ? `${owed ? "−" : ""}${fmt(b.amount)}` : "no data"}</span>
                   {b && b.carried && <small>from {monthLabel(b.month, true)}</small>}
+                  {b && !b.carried && b.source === "auto" && <small data-testid={`acct-src-${a.name}`}>from account history, {b.asOf}</small>}
+                  {b && !b.carried && b.source === "derived" && <small data-testid={`acct-src-${a.name}`}>charges since the payment on {b.asOf}</small>}
                 </span>
               </button>
             );
@@ -90,12 +95,12 @@ function UpdateBalances({ records, accounts, month, onClose }) {
   };
   return (
     <Sheet title={`Balances for ${monthLabel(month)}`} onClose={onClose} testid="bal-editor">
-      <p className="hx-dim">Type what each account held (amounts owed as positive numbers). Leave a box empty to use the last month's value.</p>
+      <p className="hx-dim">Type what each account held (amounts owed as positive numbers). Leave a box empty to use the automatic value (from imports) or the last month's value. A typed value wins over an automatic one for this month.</p>
       {accounts.map((a) => {
-        const prev = balanceAt(records, a.id, month);
+        const prev = balanceAt(records, a.id, month, makeDerive(records));
         return (
           <Field key={a.id} label={`${a.name} · ${(ACCOUNT_KINDS[a.kind] || ACCOUNT_KINDS.otherAsset).label}`}>
-            <input className="hx-typed" inputMode="decimal" data-testid={`be-${a.name}`} value={vals[a.id]} placeholder={prev && prev.carried ? `${editText(prev.amount)} (from ${monthLabel(prev.month, true)})` : "0.00"} onChange={(e) => setVals((v) => ({ ...v, [a.id]: e.target.value }))} />
+            <input className="hx-typed" inputMode="decimal" data-testid={`be-${a.name}`} value={vals[a.id]} placeholder={prev && prev.carried ? `${editText(prev.amount)} (from ${monthLabel(prev.month, true)})` : prev && prev.source !== "manual" ? `${editText(prev.amount)} (automatic)` : "0.00"} onChange={(e) => setVals((v) => ({ ...v, [a.id]: e.target.value }))} />
           </Field>
         );
       })}

@@ -115,8 +115,8 @@ describe("balances", () => {
   ];
   it("a month without an entry carries the last one forward, never backward", () => {
     expect(balanceAt(recs, "a1xxxxxxxx", "2025-12")).toBeNull();
-    expect(balanceAt(recs, "a1xxxxxxxx", "2026-02")).toEqual({ amount: 1000, month: "2026-01", carried: true });
-    expect(balanceAt(recs, "a1xxxxxxxx", "2026-03")).toEqual({ amount: 1500, month: "2026-03", carried: false });
+    expect(balanceAt(recs, "a1xxxxxxxx", "2026-02")).toMatchObject({ amount: 1000, month: "2026-01", carried: true });
+    expect(balanceAt(recs, "a1xxxxxxxx", "2026-03")).toMatchObject({ amount: 1500, month: "2026-03", carried: false });
   });
   it("owed amounts are subtracted; cash, investments and net worth", () => {
     expect(balanceTotals(recs, "2026-01")).toMatchObject({ cash: 1000, invest: 0, netWorth: 1000 });

@@ -12,6 +12,21 @@ import {
 } from "./plan.js";
 import { fmt, parseMoney, editText } from "./money.js";
 import { MonthPicker, Sheet, Seg, Field, MonthInput } from "./ui.jsx";
+import { paychecksIn, monthCoverage } from "./actuals.js";
+
+// Plan check (spec 3.2): planned take-home per check against the paychecks seen in imports this month.
+function PaycheckCheck({ records, month, perCheck }) {
+  const p = paychecksIn(records, month);
+  const hist = records.some((r) => r.type === "batch" && (r.data.ranges || []).some((x) => x.kind === "hist" && x.from <= `${month}-31` && x.to >= `${month}-01`));
+  if (!p.count) return <p className="hx-dim" data-testid="income-check">{hist ? `No paychecks seen in ${monthLabel(month)}.` : monthCoverage(records, month).status === "none" ? "No account history imported for this month yet, so no paychecks to compare." : `No paychecks seen in ${monthLabel(month)}.`}</p>;
+  const off = p.amounts.filter((a) => Math.abs(a - perCheck) > 1);
+  return (
+    <p className="hx-dim" data-testid="income-check">
+      Paychecks seen in {monthLabel(month)}: {p.count}, <span className="hx-blue">{fmt(p.total)}</span>.{" "}
+      {off.length ? `${off.length === p.count ? "None match" : `${off.length} differ from`} the planned ${fmt(perCheck)} per check (${off.map((a) => fmt(a)).join(", ")}).` : `Each matches the planned ${fmt(perCheck)} per check.`}
+    </p>
+  );
+}
 
 const cadenceShort = { monthly: "Monthly", annual: "Yearly", irregular: "Irregular", onetime: "One time" };
 
@@ -62,7 +77,8 @@ export default function Plan({ records, month, setMonth, demoOn }) {
               {income.lines.map((l, i) => <Fragment key={i}><dt>{l.name}<small> {l.kind === "tax" ? "tax" : "benefit"}, per check</small></dt><dd className="hx-typed">−{fmt(l.perCheck)}</dd></Fragment>)}
               <dt>Take-home per year</dt><dd>{fmt(income.takeHomeYear)}</dd>
             </dl>
-            <p className="hx-dim">From {monthLabel(plan.incomeVersion.data.effective)}. Comparing this with the paychecks in your imports arrives with imports (round B2).</p>
+            <p className="hx-dim">From {monthLabel(plan.incomeVersion.data.effective)}.</p>
+            <PaycheckCheck records={records} month={month} perCheck={income.takeHomeCheck} />
           </>
         ) : <p className="hx-dim">No income in force in {monthLabel(month)}.</p>}
       </section>

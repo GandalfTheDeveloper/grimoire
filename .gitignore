@@ -4,3 +4,5 @@ dist
 # The Hoard seed files hold personal values: never commit them (charter section 5)
 *hoard-seed*
 *.seed.json
+# Bank CSV exports hold personal values: never commit them (charter section 5). Keep them outside this folder.
+*.csv

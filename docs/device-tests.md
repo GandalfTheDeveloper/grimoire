@@ -290,3 +290,34 @@ If anything doesn't match, tell me the step number and what you saw instead.
 3. You should see "The file holds:" with counts of sections, plan line versions, income versions, accounts and sorting rules. Tap **Import**.
 4. You should see "Imported N records". Tap back. **Plan** should now show your own plan. Compare it line by line with the spreadsheet.
 5. Delete the seed file from the phone (Files app: press and hold it, **Delete**) and from the computer (and empty the Recycle Bin).
+
+## N. App 0.13.0: The Hoard, round B2 (imports). No Apps Script update needed (backend stays 0.8.0)
+
+### N1. Versions (phone)
+1. Open **Grimoire**. If an **Update available** banner shows, tap **Update now**. At the bottom of the home screen, **Build** should start with **0.13.0**.
+2. Open The Hoard and tap **Transactions**. You should see an **Import** card with **Import CSV files**, not the "Round B2" placeholder.
+
+### N2. A made-up quarter (do on the phone, the tablet AND the computer)
+1. In The Hoard, tap the **gear**, tick **Demo mode**, tap the **back arrow**.
+2. **Transactions**, tap **Import a made-up quarter**. You should see three files listed (spending export, checking history, savings history). Tap **Continue**.
+3. The summary shows about 100 new rows, **Pending (skipped) 2**, **Already in the spending export 9**, and three date ranges. Tap **Save … transactions**.
+4. You should see "Imported … new transactions, 6 month-end balances filled in". Tap **Done**.
+5. **To review**: the **Sample Rideshare** rows show two buttons (**Going out**, **Air travel**). Tap one. The row disappears and no "Always put" question appears.
+6. On a **Demo Coffee Cart** row, pick **Fast food** in **Put on a line…**. You should see "Always put Demo Coffee Cart on Fast food?". Tap **Yes, make a rule**: the other Demo Coffee Cart rows disappear from the list.
+7. On a **Demo Warehouse Club** row tap **More…**, tick **Split across several lines**, put part on **Groceries** and the rest on **Personal** so the line under it says **Adds up**, tap **Save**.
+8. **Overview**: tap the **left arrow** once (last month). The badge says **Actual**; Spent shows "plan $…" under it; section rows have colored bars with a white mark; Saved says **from balances**. Tap the **right arrow** back to this month: it says **no data, not $0**.
+9. **Balances**: last month, **Demo Checking** shows "from account history, …" and **Demo Card** "charges since the payment on …".
+10. Nothing spills off the right edge; the import panel, the transaction panel and the rules list fit. Then gear, **Clear demo data**.
+
+### N3. Your first real import (computer, after M4 and M5 have passed)
+**Warning: your bank CSV files are personal. Keep them OUT of `C:\Users\Brunn\Downloads\grimoire` (the repo folder; `*.csv` is now ignored there as a safety net, but don't rely on it), never upload them to Claude, and don't send screenshots of the import screens with real rows on them.** Describe problems in words or with counts.
+1. Download the spending export and the checking account history from your bank into your **Downloads** folder (not the grimoire folder).
+2. Open Grimoire in the browser, open **The Hoard** (demo mode off), unlock, tap **Transactions**, tap **Import CSV files**, click **Choose Files**, select both files (hold **Ctrl** to pick two), click **Open**.
+3. If it asks **Which of your accounts is each of these?**, pick the account for each name and click **Save and continue**. This is asked only once per name.
+4. Click **Continue**. Check the summary numbers and the dates each file covers (change them if the export covered more or less). Click **Save … transactions**.
+5. Sort the **To review** rows. Say **Yes, make a rule** when it offers, if you want that merchant sorted automatically next time.
+6. Open **Overview** for a fully imported month and compare it with what you expect.
+7. Do the same import again with the same files. The summary should say **New 0** and **Already here** equal to the first import's New. Close it without saving (or save; it adds nothing).
+8. In your Google Sheet, the new tab **budget_txenc** has only the envelope columns and scrambled **Payload** text, and there is **no** tab called **budget_tx**.
+9. Delete the CSV files from Downloads (and empty the Recycle Bin), or move them somewhere private.
+10. Tell Claude "N3 passed" or the step number and the words on screen (no real numbers or names).

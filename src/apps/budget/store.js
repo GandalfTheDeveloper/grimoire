@@ -7,13 +7,13 @@ import { useEffect, useSyncExternalStore } from "react";
 import { collectionsFor, data as coreData } from "../../core/index.js";
 import { newId } from "../../core/data.js";
 import { getItem, setItem } from "../../core/storage.js";
-import { fromRecord, toFields, TYPES } from "./schema.js";
+import { fromRecord, toFields, TYPES, collOf } from "./schema.js";
 import { demoRecords } from "./demo.js";
 
 export const APP_ID = "budget";
 const DEMO_KEY = "demo";
 
-const handle = () => collectionsFor(APP_ID).find((c) => c.name === "data");
+const handle = (name = "data") => collectionsFor(APP_ID).find((c) => c.name === name);
 
 // ---------- demo store (charter: labelled, stored separately, never touches the Sheet) ----------
 export function loadDemo() {
@@ -32,13 +32,15 @@ const getSnapshot = () => state;
 // A reload that started before one of our own writes finished would put the older list back on screen,
 // so every write bumps a counter and a reload whose counter moved reads again.
 let gen = 0;
+// While a batch of writes runs (an import), per-record change notices are ignored and one read follows.
+let batching = 0;
 export async function reloadReal() {
-  const h = handle();
-  if (!h) return;
+  const h = handle(), ht = handle("tx");
+  if (!h || batching) return;
   for (let tries = 0; tries < 5; tries++) {
     const g = gen;
     try {
-      const list = await h.list();
+      const list = [...(await h.list()), ...(ht ? await ht.list() : [])];
       if (g !== gen) continue;
       set({ real: list.map(fromRecord).filter((r) => TYPES.includes(r.type)), loaded: true, error: "" });
       return;
@@ -64,11 +66,48 @@ export async function put(id, type, dataObj, { real = false } = {}) {
     return rec;
   }
   gen += 1;
-  const saved = await handle().put(id, toFields(type, dataObj));
+  const saved = await handle(collOf(type)).put(id, toFields(type, dataObj));
   gen += 1;
   const rec = fromRecord(saved);
-  set({ real: [...state.real.filter((r) => r.id !== rec.id), rec] });
+  if (!batching) set({ real: [...state.real.filter((r) => r.id !== rec.id), rec] });
   return rec;
+}
+
+// Many writes (an import): each record is saved on its own (every edit reaches the device at once), but the
+// screen updates once at the end instead of after every record. onProgress(done, total) for a progress line.
+export async function putBatch(list, { real = false, onProgress } = {}) {
+  if (state.demoOn && !real) {
+    const now = Date.now();
+    const byId = new Map(state.demo.map((r) => [r.id, r]));
+    list.forEach((x, i) => {
+      const id = x.id || `demo-${newId()}`;
+      const prev = byId.get(id);
+      byId.set(id, { id, type: x.type, data: x.data, createdAt: prev ? prev.createdAt : now + i, updatedAt: Math.max(now + i, prev ? prev.updatedAt + 1 : 0), demo: true });
+    });
+    const demo = [...byId.values()];
+    saveDemo({ on: true, records: demo });
+    set({ demo });
+    if (onProgress) onProgress(list.length, list.length);
+    return list.length;
+  }
+  batching += 1;
+  const saved = [];
+  try {
+    for (let i = 0; i < list.length; i++) {
+      const x = list[i];
+      if (!TYPES.includes(x.type)) throw new Error(`unknown record type ${x.type}`);
+      gen += 1;
+      saved.push(fromRecord(await handle(collOf(x.type)).put(x.id, toFields(x.type, x.data))));
+      if (onProgress && (i % 25 === 24 || i === list.length - 1)) onProgress(i + 1, list.length);
+    }
+  } finally {
+    batching -= 1;
+    gen += 1;
+    const ids = new Set(saved.map((r) => r.id));
+    set({ real: [...state.real.filter((r) => !ids.has(r.id)), ...saved] });
+  }
+  await reloadReal(); // anything a sync brought in while the batch ran
+  return saved.length;
 }
 
 export async function remove(id) {
@@ -79,7 +118,8 @@ export async function remove(id) {
     return;
   }
   gen += 1;
-  await handle().remove(id);
+  const cur = state.real.find((r) => r.id === id);
+  await handle(collOf(cur ? cur.type : "")).remove(id);
   gen += 1;
   set({ real: state.real.filter((r) => r.id !== id) });
 }

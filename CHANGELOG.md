@@ -20,6 +20,22 @@
 | Golden Ratio round 2: scroll back down, Clear, settings | 0.11.0 | 0.7.0 (Apps Script update needed) |
 | Super Shrexy fixes: tablet screen stays on, phone trash buttons | 0.11.1 | 0.7.0 (unchanged: no Apps Script update) |
 | New app: The Hoard, round B1 | 0.12.0 | 0.8.0 (Apps Script update needed) |
+| The Hoard, round B2: imports | 0.13.0 | 0.8.0 (unchanged: no Apps Script update) |
+
+## App 0.13.0 / Backend 0.8.0 (unchanged) — The Hoard, round B2: imports
+- **Transactions** section. **Import CSV files**: pick your spending export and your checking account history (and the savings history if you like), several at once, on the computer or the phone (Files). Read on the device only; the files are never stored or sent.
+- Both bank formats are **recognised by their header row**. Any other layout opens a **column mapper** once (only column names are shown) and is remembered as a saved format. New account names in a file are asked about **once** (pick an account, add it as a new one, or leave it unlinked); account numbers are cut to their last four digits before anything is kept.
+- **Summary before saving:** rows read, new, already here, pending (skipped), already in the spending export (skipped from the history), refunds, transfers, income, sorted by your rules, need review, and the dates each file covers (editable).
+- **Re-importing is safe:** each transaction's id is made from its date, amount, description and place in the file with a secret kept in the Vault, so overlapping files meet the same records and the Sheet's Id column reveals nothing.
+- **Rules engine** (on the device): your seed file's rules (pattern, months, amount range, first-each-month, ask) plus rules you make with **"Always put X here?"** after sorting a row by hand (it also sorts the other waiting rows with the same name). **Sorting rules** list to edit or delete.
+- **Review list:** one tap puts a row on a line; "ask" rules (rides) show their choices as buttons; **More…** for refunds, income, transfer, hide, a note, or a **split** across several lines.
+- **Browse** any month by section, account and search; tap a row to change it. Months are marked whole, partly or not imported.
+- **Overview with actuals:** In / Spent / Saved for the month, each section's actual as a colored bar against its white plan mark with an "over" label, irregular lines on year-to-date pace, "Not sorted yet", 12 months of actuals, and "no data, not $0" for months not imported. Badges: last import and how many to review.
+- **Saved** is measured from balances (change in checking + savings − card owed, plus money put on Saving lines) when both month-ends have balances; otherwise In − Spent, labelled as an estimate.
+- **Balances fill in automatically:** checking and savings month-end balances from the history files; the card's balance owed from the charges since its last payment (once a payment has been imported). A balance you type still wins for that month.
+- **Plan:** the income card compares paychecks seen in imports with the planned take-home per check.
+- **Demo mode:** **Import a made-up quarter** (Transactions) generates fake files in both formats with every case in them (pending rows, a refund, a wrong bank category, rides, a split candidate, card payments, paychecks, transfers, rows in both files).
+- `.gitignore` now also ignores `*.csv`, so a bank export dropped into the grimoire folder can't be committed by accident.
 
 ## App 0.12.0 / Backend 0.8.0 — The Hoard, round B1 (Phase 4)
 - **The Hoard** replaces the empty Budget slot (same ID `budget`). **In the Vault from day one**: every record is encrypted on the device; the Sheet gets only scrambled `Payload` text (tab `budget_dataenc`; `budget_txenc` is ready for round B2). Works on the phone, the tablet and a computer browser.

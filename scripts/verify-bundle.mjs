@@ -190,6 +190,49 @@ click(q("back"));
 click(q("hx-tab-plan"));
 check("Clear demo data brings the real plan back", !!(await until(() => q("line-Verify fake groceries") && !q("hx-demo-banner"))));
 
+// ---------- The Hoard, round B2 (app 0.13.0): imports, fake files only ----------
+function pick(el, value) {
+  const setter = Object.getOwnPropertyDescriptor(w.HTMLSelectElement.prototype, "value").set;
+  setter.call(el, value);
+  el.dispatchEvent(new w.Event("change", { bubbles: true }));
+}
+function chooseFiles(el, files) {
+  Object.defineProperty(el, "files", { value: files.map(([name, body]) => new w.File([body], name, { type: "text/csv" })), configurable: true });
+  el.dispatchEvent(new w.Event("change", { bubbles: true }));
+}
+const vSpend = "Date,Description,Original Description,Amount,Type,Parent Category,Category,Account,Tags,Memo,Pending\r\n"
+  + '10/2/2026,Verify Grocer,"VERIFY GROCER, TESTTOWN",12.34,Debit,,Groceries,Verify Card,,,FALSE\r\n'
+  + '10/30/2026,Verify Grocer,"VERIFY GROCER, TESTTOWN",5.00,Credit,,Groceries,Verify Card,,,FALSE\r\n'
+  + '10/31/2026,Verify Grocer,"VERIFY GROCER, TESTTOWN",1.00,Debit,,Groceries,Verify Card,,,TRUE\r\n';
+const vHist = "Account Number,Post Date,Check,Description,Debit,Credit,Status,Balance,Classification\r\n"
+  + "000011112222,10/9/2026,,VERIFY PAYROLL,,999.00,Posted,1999.00,Paycheck\r\n";
+click(q("hx-tab-transactions"));
+check("Transactions opens with No imports yet", !!(await until(() => q("tx-import") && text("tx-last-import") === "No imports yet")));
+click(q("tx-import"));
+await until(() => q("imp-files"));
+chooseFiles(q("imp-files"), [["verify-spend.csv", vSpend], ["verify-hist.csv", vHist]]);
+check("both bank formats are read and their new account names are asked about once", !!(await until(() => q("imp-acct-Verify Card") && q("imp-acct-…2222"))));
+pick(q("imp-acct-Verify Card"), "new:card");
+pick(q("imp-acct-…2222"), "new:checking");
+click(q("imp-acct-save"));
+await until(() => q("imp-continue"));
+click(q("imp-continue"));
+check("the summary counts new rows, the pending row and the refund", !!(await until(() => text("imp-sum-New") === "3" && text("imp-sum-Pending (skipped)") === "1" && text("imp-sum-Refunds") === "1", 8000)), text("imp-summary"));
+click(q("imp-save"));
+check("saving the import fills a month-end balance from the history file", !!(await until(() => /Imported 3 new transactions.*1 month-end balance/.test(text("imp-done")), 8000)), text("imp-done"));
+click(q("imp-finish"));
+check("the review list shows the rows no rule sorted", !!(await until(() => text("tx-review-count") === "2 to review")));
+check("transactions reach the Sheet only as budget_txenc rows with scrambled Payload and ids that reveal nothing", !!(await until(() => backend.rows("budget_txenc").length === 3, 8000))
+  && !backend.sheets.has("budget_tx") && backend.rows("budget_txenc").every((r) => /^t[A-Za-z0-9_-]{24}$/.test(r.Id))
+  && !/VERIFY|12\.34|999|2222|Verify Card/.test(JSON.stringify(backend.rows("budget_txenc")) + JSON.stringify(backend.rows("budget_dataenc"))), String(backend.rows("budget_txenc").length));
+click(q("tx-import"));
+await until(() => q("imp-files"));
+chooseFiles(q("imp-files"), [["verify-spend.csv", vSpend], ["verify-hist.csv", vHist]]);
+await until(() => q("imp-continue"));
+click(q("imp-continue"));
+check("importing the same files again finds nothing new", !!(await until(() => text("imp-sum-New") === "0" && text("imp-sum-Already here (skipped)") === "3", 8000)));
+click(q("imp-close"));
+
 w.location.hash = "#/settings";
 await until(() => q("vault-toggle-cookbook"));
 click(q("vault-toggle-cookbook"));

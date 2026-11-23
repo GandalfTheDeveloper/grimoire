@@ -39,7 +39,7 @@ export default function HoardSettings() {
       <div className="gr-section">Demo mode (this device only)</div>
       <div className="gr-list">
         <label className="gr-row">
-          <span>Demo mode<small>A made-up plan and a year of made-up balances. Never sent to the Sheet. Your real data is untouched and comes back when you turn this off.</small></span>
+          <span>Demo mode<small>A made-up plan, a year of made-up balances, and made-up bank files to import (Transactions, Import a made-up quarter). Never sent to the Sheet. Your real data is untouched and comes back when you turn this off.</small></span>
           <input className="gr-check" style={{ flex: "0 0 auto" }} type="checkbox" data-testid="hx-set-demo" checked={demoOn} onChange={() => { setCleared(false); setDemoOn(!demoOn); }} />
         </label>
         <div className="gr-actions">
