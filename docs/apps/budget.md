@@ -1,6 +1,6 @@
 # The Hoard — budget app spec (`budget`)
 
-> **Status: approved by Isaac 2026-11-23 (charter v1.7). Round B1 built 2026-11-23 (app 0.12.0, backend 0.8.0). Round B2 (imports) built 2026-11-23 (app 0.13.0, backend unchanged at 0.8.0). Fake data only until device check M4 (security checklist) passes. B3 next.**
+> **Status: approved by Isaac 2026-11-23 (charter v1.7). Round B1 built 2026-11-23 (app 0.12.0, backend 0.8.0). Round B2 (imports) built 2026-11-23 (app 0.13.0, backend unchanged at 0.8.0); device checks N1–N3 passed 2026-11-23, including a real import. B3 next.**
 > This file lives in the **public** GitHub repo, so it never contains personal figures (income, balances, amounts, merchant names, account names or numbers). All of those are data, entered or imported in the app and stored encrypted in the Sheet. Examples below are generic.
 
 ---
@@ -174,7 +174,7 @@ Ordered list. A rule matches on original description (contains / pattern), optio
 | Round | Scope | Done when |
 |---|---|---|
 | **B1** | App shell, vault records, Plan (income, sections, lines, cadence, effective dates), Balances (manual), Overview (plan only), demo mode, seed import | Seed imported on phone; plan matches the spreadsheet; demo passes on phone, tablet, computer |
-| **B2** | Imports (both formats + mapper), dedupe, transfers, refunds, rules engine, review list, splits, coverage/"no data", automatic balances, Overview plan vs actual | A demo quarter imports correctly; a real import reviewed on device. **Built 2026-11-23 (app 0.13.0); device checks pending** |
+| **B2** | Imports (both formats + mapper), dedupe, transfers, refunds, rules engine, review list, splits, coverage/"no data", automatic balances, Overview plan vs actual | A demo quarter imports correctly; a real import reviewed on device. **Built 2026-11-23 (app 0.13.0); device checks passed 2026-11-23** |
 | **B3** | Goals: Rivian port + progress tracker | Every typed number reproduced within rounding (or Isaac picked) |
 | **B4** | Retirement | Hand-checked scenarios match; save/pin works across devices |
 | **B5** | Mortgage (loan, escrow history, what-ifs, break-even) + market tab via Apps Script | Charter addition approved; chart shows real FRED history |
