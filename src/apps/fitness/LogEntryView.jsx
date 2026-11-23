@@ -275,20 +275,23 @@ export function LogEntryView({ date, setDate, anchorDate, dailyLog, exerciseLog,
                   <span style={{ fontSize: 12, color: SUB, width: 16 }}>{i + 1}</span>
                   {type === "time" ? (
                     <>
-                      <div style={{ flex: 1, padding: 8, borderRadius: 6, background: BG, border: `1px solid ${LINE}`, color: isTiming ? ACCENT : INK, fontFamily: "ui-monospace, Menlo, monospace" }}>
+                      <div style={{ flex: 1, minWidth: 0, padding: 8, borderRadius: 6, background: BG, border: `1px solid ${LINE}`, color: isTiming ? ACCENT : INK, fontFamily: "ui-monospace, Menlo, monospace" }}>
                         {isTiming ? formatSecondsClock(timerElapsed[timerKey]) : row.reps ? formatSecondsClock(row.reps) : ph.reps ? `${formatSecondsClock(ph.reps)} last time` : "0:00"}
                       </div>
-                      <button onClick={() => toggleTimer(ex.ExerciseName, i)} style={{ flex: 1, padding: 8, borderRadius: 6, border: "none", background: isTiming ? REDC : ACCENT, color: isTiming ? ON_RED : ON_ACCENT, fontWeight: 700, cursor: "pointer" }}>
+                      <button onClick={() => toggleTimer(ex.ExerciseName, i)} style={{ flex: 1, minWidth: 0, padding: 8, borderRadius: 6, border: "none", background: isTiming ? REDC : ACCENT, color: isTiming ? ON_RED : ON_ACCENT, fontWeight: 700, cursor: "pointer" }}>
                         {isTiming ? "Stop" : "Start"}
                       </button>
                     </>
                   ) : (
-                    <input inputMode="numeric" placeholder={ph.reps ? `${ph.reps} reps` : "reps"} value={row.reps} onChange={(e) => updateSetRow(ex.ExerciseName, i, "reps", e.target.value)} style={{ flex: 1, padding: 8, borderRadius: 6, background: BG, border: `1px solid ${LINE}`, color: INK }} />
+                    <input inputMode="numeric" placeholder={ph.reps ? `${ph.reps} reps` : "reps"} value={row.reps} onChange={(e) => updateSetRow(ex.ExerciseName, i, "reps", e.target.value)} style={{ flex: 1, minWidth: 0, width: 0, padding: 8, borderRadius: 6, background: BG, border: `1px solid ${LINE}`, color: INK }} />
                   )}
                   {type === "weighted" && (
-                    <input inputMode="decimal" placeholder={ph.weight ? `${ph.weight} lb` : "weight"} value={row.weight} onChange={(e) => updateSetRow(ex.ExerciseName, i, "weight", e.target.value)} style={{ flex: 1, padding: 8, borderRadius: 6, background: BG, border: `1px solid ${LINE}`, color: INK }} />
+                    <input inputMode="decimal" placeholder={ph.weight ? `${ph.weight} lb` : "weight"} value={row.weight} onChange={(e) => updateSetRow(ex.ExerciseName, i, "weight", e.target.value)} style={{ flex: 1, minWidth: 0, width: 0, padding: 8, borderRadius: 6, background: BG, border: `1px solid ${LINE}`, color: INK }} />
                   )}
-                  <Trash2 size={16} style={{ color: REDC, cursor: "pointer" }} onClick={() => removeSetRow(ex.ExerciseName, i)} />
+                  <button type="button" data-testid="remove-set" aria-label={`Remove set ${i + 1} of ${ex.ExerciseName}`} onClick={() => removeSetRow(ex.ExerciseName, i)}
+                    style={{ flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, margin: "0 -6px 0 -4px", padding: 0, background: "none", border: "none", cursor: "pointer" }}>
+                    <Trash2 size={16} style={{ color: REDC }} />
+                  </button>
                 </div>
               );
             })}
@@ -303,9 +306,9 @@ export function LogEntryView({ date, setDate, anchorDate, dailyLog, exerciseLog,
         <div style={{ background: CARD, borderRadius: 10, padding: 12 }}>
           <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 8 }}>Run</div>
           <div style={{ display: "flex", gap: 8 }}>
-            <input inputMode="decimal" placeholder="distance (mi)" value={runData.Distance} onChange={(e) => setRunField("Distance", e.target.value)} style={{ flex: 1, padding: 8, borderRadius: 6, background: BG, border: `1px solid ${LINE}`, color: INK }} />
-            <input placeholder="time (mm:ss)" value={runData.Time} onChange={(e) => setRunField("Time", e.target.value)} style={{ flex: 1, padding: 8, borderRadius: 6, background: BG, border: `1px solid ${LINE}`, color: INK }} />
-            <input placeholder="pace (auto)" value={runData.Pace} readOnly title="Calculated automatically from distance and time" style={{ flex: 1, padding: 8, borderRadius: 6, background: BG, border: `1px solid ${LINE}`, color: SUB, cursor: "default" }} />
+            <input inputMode="decimal" placeholder="distance (mi)" value={runData.Distance} onChange={(e) => setRunField("Distance", e.target.value)} style={{ flex: 1, minWidth: 0, width: 0, padding: 8, borderRadius: 6, background: BG, border: `1px solid ${LINE}`, color: INK }} />
+            <input placeholder="time (mm:ss)" value={runData.Time} onChange={(e) => setRunField("Time", e.target.value)} style={{ flex: 1, minWidth: 0, width: 0, padding: 8, borderRadius: 6, background: BG, border: `1px solid ${LINE}`, color: INK }} />
+            <input placeholder="pace (auto)" value={runData.Pace} readOnly title="Calculated automatically from distance and time" style={{ flex: 1, minWidth: 0, width: 0, padding: 8, borderRadius: 6, background: BG, border: `1px solid ${LINE}`, color: SUB, cursor: "default" }} />
           </div>
         </div>
       )}

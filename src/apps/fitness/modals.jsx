@@ -6,7 +6,7 @@ import { buildLiftSessions, colorLiftByTarget, getExerciseMeta } from "./analyti
 import { liftChartView } from "./chart.jsx";
 import { SLIDE_DEFS } from "./slides.jsx";
 
-export function SettingsModal({ settings, onSave, onClose, onOpenPlanEditor }) {
+export function SettingsModal({ settings, wakeText, onSave, onClose, onOpenPlanEditor }) {
   const [slides, setSlides] = useState(settings.slides);
   const [seconds, setSeconds] = useState(settings.slideSeconds);
   const [enabled, setEnabled] = useState(settings.slideshowEnabled);
@@ -23,6 +23,7 @@ export function SettingsModal({ settings, onSave, onClose, onOpenPlanEditor }) {
           <X size={20} style={{ cursor: "pointer", color: SUB }} onClick={onClose} />
         </div>
         <div style={{ fontSize: 12, color: SUB, lineHeight: 1.5 }} data-testid="fitness-conn-note">Your Sheet connection (script address and key) is set once for all of Grimoire: home screen, gear, Connection.</div>
+        {wakeText && <div style={{ fontSize: 12, color: SUB, lineHeight: 1.5 }} data-testid="fitness-wake-status"><span style={{ color: INK, fontWeight: 600 }}>Keep screen on: </span>{wakeText}</div>}
         <div style={{ borderTop: `1px solid ${LINE}`, marginTop: 6, paddingTop: 12 }}>
           <label style={{ fontSize: 12, color: SUB, display: "block", marginBottom: 8 }}>Slides to display</label>
           {SLIDE_DEFS.map((s) => (

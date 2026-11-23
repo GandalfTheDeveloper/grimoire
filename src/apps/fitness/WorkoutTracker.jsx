@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Settings, ChevronLeft, ChevronRight, Smartphone, Monitor, RefreshCw } from "lucide-react";
 import { getItem, setItem } from "../../core/storage.js";
+import { useWakeLock, wakeLockText } from "../../core/wakeLock.js";
 import { data, sync } from "../../core/index.js";
 import { loadSyncConfig } from "../../core/syncConfig.js";
 import { getSyncStatus, setAppPending, subscribeSync } from "../../core/syncStatus.js";
@@ -47,38 +48,12 @@ export default function WorkoutTracker() {
   const [editContext, setEditContext] = useState(null);
   const mountedRef = useRef(true);
   const touchStart = useRef(null);
-  const wakeLockRef = useRef(null);
   const chain = useRef(Promise.resolve()); // saves run one after another, in the order they were made
   const [syncingNow, setSyncingNow] = useState(!!getSyncStatus().syncing);
   const syncing = busy || syncingNow;
 
-  const requestWakeLock = async () => {
-    try {
-      if ("wakeLock" in navigator) {
-        wakeLockRef.current = await navigator.wakeLock.request("screen");
-      }
-    } catch {
-      // permission denied, unsupported, or backgrounded: silently skip
-    }
-  };
-  const releaseWakeLock = () => {
-    wakeLockRef.current?.release().catch(() => {});
-    wakeLockRef.current = null;
-  };
-
-  useEffect(() => {
-    if (mode === "display") requestWakeLock(); else releaseWakeLock();
-    return releaseWakeLock;
-  }, [mode]);
-
-  // Wake locks are auto-released when the tab is hidden: re-acquire once it's visible again.
-  useEffect(() => {
-    const onVisibility = () => {
-      if (document.visibilityState === "visible" && mode === "display" && !wakeLockRef.current) requestWakeLock();
-    };
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => document.removeEventListener("visibilitychange", onVisibility);
-  }, [mode]);
+  // Screen wake lock in display mode (the tablet). The hook re-asks whenever the browser drops it.
+  const wake = useWakeLock(mode === "display");
 
   const [hydrated, setHydrated] = useState(false);
 
@@ -282,7 +257,7 @@ export default function WorkoutTracker() {
         </div>
       )}
 
-      {showSettings && <SettingsModal settings={settings} onClose={() => setShowSettings(false)} onSave={async (s) => { setSettings(s); await storeSet("settings", s); setShowSettings(false); }} onOpenPlanEditor={() => { setShowSettings(false); setShowPlanEditor(true); }} />}
+      {showSettings && <SettingsModal settings={settings} wakeText={wakeLockText(wake, mode === "display")} onClose={() => setShowSettings(false)} onSave={async (s) => { setSettings(s); await storeSet("settings", s); setShowSettings(false); }} onOpenPlanEditor={() => { setShowSettings(false); setShowPlanEditor(true); }} />}
       {showPlanEditor && <PlanEditorModal planOverrides={planOverrides} onClose={() => setShowPlanEditor(false)} onSave={onSavePlanOverride} />}
     </div>
   );

@@ -47,6 +47,12 @@ Source of truth for how Fitness lives inside Grimoire. The full feature history,
 - Cards are `data-excard`; `.ex-card` turns text selection and the touch callout off for the cards (inputs and notes boxes explicitly keep selection).
 - Not built (not asked for): reordering from the tablet's views, a drag handle, "undo". The Edit workouts screen has no drag (its rows are still edited by hand).
 
+## App 0.11.1: tablet screen stays on, phone trash buttons
+- **Wake lock (tablet display mode).** Moved into a shared hook, `src/core/wakeLock.js` (`useWakeLock(active)`, `wakeLockText`). Cause of the auto-lock: the browser releases a screen wake lock by itself when the page is hidden or the screen goes off; the old code kept the released lock in its ref, so the "re-acquire when visible" check thought it still had one and never asked again. The hook clears its ref on the lock's `release` event and asks again on `visibilitychange` (visible), on any `pointerdown`, and every 30 s (`WAKE_RETRY_MS`) while it doesn't hold one. It never asks while hidden (the browser refuses). Everything stops on close, as before.
+- Super Shrexy settings shows **Keep screen on: On / Off (reason)** (`data-testid="fitness-wake-status"`), so a problem on the tablet can be checked without guessing.
+- What it can't override: Android battery saver can refuse the lock (the line then says "refused (NotAllowedError)"), and the tablet's own lock screen still applies if Chrome is closed or another app is on top.
+- **Trash button cut off on the phone.** A text box has a built-in minimum width (about 20 characters). With two boxes per row (weighted exercises) at phone width, the boxes didn't fit, and the trash icon (an SVG, which shrinks by default) was squeezed to 0 px. Reps-only rows (one box) had room, which is why Slow Pushups looked fine. Fix: the boxes get `min-width: 0` and the trash is a 32 px button with `flex-shrink: 0`. Measured in Chrome at 430 px (iPhone 15 Pro Max) and 375 px: before, 0 px wide on every weighted exercise; after, 32 px and inside the card on every row. The run row's three boxes got the same `min-width: 0`.
+
 ## Data format (app 0.8.0, backend 0.5.0)
 Super Shrexy's data is stored as ordinary Grimoire records, in the tabs `fitness_daily`, `fitness_exercise`, `fitness_run`, `fitness_notes`, `fitness_plan` (fields in `src/apps/fitness/schema.js`, same column names as the old tabs). The app registers them in `meta.js`; the Grimoire sync engine sends only changed records and downloads only new ones; the newest `UpdatedAt` wins; deletes are flags. `src/apps/fitness/data.js` is the only file that touches records: the screens still use the old row shapes and `{ action, data }` items.
 - **Ids** come from the natural key (`d-<date>`, `e-<date>-<hash of exercise name>-<set>`, `r-<date>`, `n-<date>`, `p-<week>-<day>`), so two devices editing the same day or set meet in one record. Chosen over random ids on purpose: random ids would let two devices create two records for one day. Ids are unique, as the charter requires.
@@ -73,6 +79,7 @@ Fitness has **no script address or key of its own**. It reads Grimoire's one con
 - Aborting an in-flight save when you leave the app: it is left to finish; the queue holds anything unconfirmed.
 
 ## Gotchas
+- **Any new row of text boxes beside a button** needs `min-width: 0` on the boxes and `flex-shrink: 0` on the button, or the button disappears at phone width (0.11.1). jsdom can't catch this (no layout); measure in a real browser.
 - **Before the first open of 0.8.0, sync old Shrexy to zero pending** (and any other device on 0.6.0): the import copies what is in the old tabs, so edits still waiting in the old app would miss it. After the move, old Shrexy no longer sees new data.
 - **Deploy order for 0.8.0:** update the Apps Script (backend 0.5.0) first, then push the app. If the app arrives first, edits stay saved on the device (amber dot, "unknown_app" in Diagnostics) and go up once the backend is updated; nothing is lost.
 - If Fitness shows "The key was rejected" or "Not connected yet", the problem is Grimoire's Connection setting on that device, not Fitness.

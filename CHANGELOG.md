@@ -18,6 +18,13 @@
 | Round of changes: zoom and scroll the graphs by date, drag to reorder a day's exercises | 0.9.0 | 0.5.0 (unchanged: no Apps Script update) |
 | New app: Golden Ratio | 0.10.0 | 0.6.0 (Apps Script update needed) |
 | Golden Ratio round 2: scroll back down, Clear, settings | 0.11.0 | 0.7.0 (Apps Script update needed) |
+| Super Shrexy fixes: tablet screen stays on, phone trash buttons | 0.11.1 | 0.7.0 (unchanged: no Apps Script update) |
+
+## App 0.11.1 / Backend 0.7.0 (unchanged) — Super Shrexy fixes
+- **Tablet screen stays on.** The tablet's display mode holds a screen wake lock. The browser drops that lock on its own whenever the screen goes off or the page is hidden. The old code kept the dropped lock and never asked again, so after the first drop the tablet went back to its normal screen timeout until Super Shrexy was reopened. Now the lock is asked for again when the page is visible again, on any tap, and every 30 seconds if it is missing. Shared hook: `src/core/wakeLock.js`.
+- **Super Shrexy settings** (gear on the Super Shrexy bar) now has a **Keep screen on** line that says whether the lock is on, and why not if it isn't.
+- **Phone: the trash button on every set row is back.** On weighted exercises (two boxes) the boxes refused to shrink below the browser's built-in width, so the trash icon was squeezed to zero width. The boxes can now shrink and the button can't. The button is also a bigger tap target. The run row got the same fix.
+- No Apps Script change.
 
 ## App 0.11.0 / Backend 0.7.0 — Golden Ratio round 2
 - **Scroll back down to the fields:** on the history screen, scroll to the newest card and keep pulling to get the fields back (no need to tap the graphic). Only scrolling *up* opens the history screen now.

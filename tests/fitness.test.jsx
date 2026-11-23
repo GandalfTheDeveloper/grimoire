@@ -291,6 +291,49 @@ describe("closing the app stops everything", () => {
     await screen.findByTestId("home-grid");
     await waitFor(() => expect(release).toHaveBeenCalled());
   });
+  it("tablet display mode: asks for the wake lock again after the browser drops it (screen off, then back on)", async () => {
+    setWidth(1000); seedConn();
+    const locks = [];
+    const request = vi.fn(async () => {
+      const handlers = [];
+      const lock = { released: false, addEventListener: (t, f) => { if (t === "release") handlers.push(f); }, release: vi.fn(async () => {}), drop() { this.released = true; handlers.forEach((f) => f()); } };
+      locks.push(lock); return lock;
+    });
+    Object.defineProperty(navigator, "wakeLock", { value: { request }, configurable: true });
+    const setVis = (v) => { Object.defineProperty(document, "visibilityState", { value: v, configurable: true }); document.dispatchEvent(new Event("visibilitychange")); };
+    try {
+      await open();
+      await waitFor(() => expect(request).toHaveBeenCalledTimes(1));
+      // The screen turns off: the page is hidden and the browser releases the lock by itself.
+      await act(async () => { setVis("hidden"); locks[0].drop(); });
+      expect(request).toHaveBeenCalledTimes(1); // never asks while hidden
+      // The screen comes back: it must ask again (the old code kept the dead lock and never did).
+      await act(async () => { setVis("visible"); });
+      await waitFor(() => expect(request).toHaveBeenCalledTimes(2));
+      // The browser drops it without hiding the page (e.g. battery saver): a tap gets it back.
+      await act(async () => { locks[1].drop(); });
+      await act(async () => { fireEvent.pointerDown(screen.getByTestId("fitness-root")); });
+      await waitFor(() => expect(request).toHaveBeenCalledTimes(3));
+    } finally { setVis("visible"); }
+  });
+  it("tablet display mode: retries every 30 seconds when the lock was refused, and Settings says whether it is on", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      setWidth(1000); seedConn();
+      let refuse = true;
+      const request = vi.fn(async () => { if (refuse) { const e = new Error("no"); e.name = "NotAllowedError"; throw e; } return { released: false, addEventListener() {}, release: async () => {} }; });
+      Object.defineProperty(navigator, "wakeLock", { value: { request }, configurable: true });
+      await open();
+      await waitFor(() => expect(request).toHaveBeenCalledTimes(1));
+      refuse = false;
+      await act(async () => { await vi.advanceTimersByTimeAsync(31 * 1000); });
+      expect(request).toHaveBeenCalledTimes(2);
+      await act(async () => { await vi.advanceTimersByTimeAsync(5 * 60 * 1000); });
+      expect(request).toHaveBeenCalledTimes(2); // holding it: no more asking
+      fireEvent.click(document.querySelector("[data-testid=fitness-root] svg.lucide-settings"));
+      expect((await screen.findByTestId("fitness-wake-status")).textContent).toMatch(/On:/);
+    } finally { vi.useRealTimers(); }
+  });
   it("makes no more requests to the Sheet after it is closed", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
@@ -369,6 +412,20 @@ describe("layout inside Grimoire", () => {
     expect(screen.queryByText("Super Shrexy Tracker")).toBeNull();
     expect(screen.queryAllByLabelText(/full screen/i).length).toBeLessThanOrEqual(1);
     expect(screen.getByTestId("topbar").textContent).toMatch(/Super Shrexy/);
+  });
+  it("phone: every set row's remove button can't be squeezed out (inputs may shrink, the button may not)", async () => {
+    // jsdom has no layout engine; the real measurement at iPhone widths is done in Chrome (docs/apps/fitness.md, 0.11.1).
+    seedConn();
+    await open();
+    const buttons = await screen.findAllByTestId("remove-set");
+    expect(buttons.length).toBeGreaterThan(3);
+    for (const b of buttons) {
+      expect(b.style.flexShrink).toBe("0");
+      for (const inp of b.parentElement.querySelectorAll("input")) expect(inp.style.minWidth).toMatch(/^0(px)?$/);
+    }
+    const before = buttons.length;
+    fireEvent.click(buttons[0]);
+    await waitFor(() => expect(screen.getAllByTestId("remove-set").length).toBe(before - 1));
   });
   it("tablet opens Fitness in display mode (wall display) by default", async () => {
     setWidth(1000); seedConn();

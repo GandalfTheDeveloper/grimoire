@@ -202,7 +202,6 @@ Do I1 and I2 on the tablet, I3 and I4 on the phone. The phone steps are the ones
 ### J7. Copy key (phone)
 1. Tap a field, type a value, tap the **Copy** key, then **b**. You should see "Copied … mm". Paste it somewhere to check.
 
-If anything doesn't match, tell me the step number and what you saw instead.
 
 ## K. App 0.11.0: Golden Ratio round 2 (after the Apps Script update to 0.7.0)
 
@@ -232,5 +231,22 @@ If anything doesn't match, tell me the step number and what you saw instead.
 6. On the computer, open Grimoire and Golden Ratio. Within a minute or two (or after **Diagnostics** > **Sync now**), the gear should show the same two settings unchecked.
 7. Turn both settings back on if you want the old behaviour (or leave them; your choice).
 
-If anything doesn't match, tell me the step number and what you saw instead.
 
+## L. App 0.11.1: Super Shrexy fixes (no Apps Script update needed)
+
+### L1. Phone: trash buttons
+1. On the iPhone, open Grimoire and tap **Super Shrexy**.
+2. Hold the phone upright (portrait). Scroll through today's exercises.
+3. You should see a red **trash can** at the right end of every set row, on every exercise (including Cable Crossovers, Seated Dumbbell Press, Lateral Raises).
+4. On an exercise you haven't logged, tap **Add set**, then tap the trash can on the new row. The row should disappear.
+
+### L2. Tablet: screen stays on
+1. On the tablet, open Grimoire. It opens to Super Shrexy's display mode.
+2. Tap the **gear** on the Super Shrexy bar (right side, below Grimoire's top bar).
+3. You should see **Keep screen on: On**. If it says **Off**, note the words in brackets and send them to Claude.
+4. Tap the **X** to close settings.
+5. Press the tablet's **power button** once to turn the screen off, then press it again and unlock.
+6. Wait 1 minute, then open the gear again. It should still say **Keep screen on: On**. (Before this fix, this is the step where it broke.)
+7. Leave the tablet alone for longer than its normal screen timeout. The screen should stay on.
+
+If anything doesn't match, tell me the step number and what you saw instead.
