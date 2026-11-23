@@ -147,6 +147,10 @@ Envelope per charter: `Id, CreatedAt, UpdatedAt, SyncedAt, Deleted, SchemaVersio
 ### 4.5 Rules
 Ordered list. A rule matches on original description (contains / pattern), optionally amount range, account, day-of-month window, or "first match each month" (used for a membership charge that shares a merchant with extra purchases). Action: assign a line, mark as transfer/income, or **ask** with 2–4 choices. Rules apply only to newly imported rows; manual edits always win.
 
+**Rule record as the seed file writes it (B2 must read this shape; add fields, never rename):** `{ order, pattern, action, months?, amountMin?, amountMax?, firstEachMonth?, note? }`. `pattern` is a case-insensitive regular expression tested against Original Description. `action` is `{ type: "line", line: <lineId> }`, `{ type: "transfer" }` or `{ type: "ask", choices: [<lineId>, …] }`. `months` (1–12) and `amountMin`/`amountMax` narrow a rule (used to tell a once-a-year fee from the monthly charge at the same merchant). Lowest `order` that matches wins.
+
+**Goal record from the seed (B3 reads it):** `{ tool: "rivian", source, cells: { "<sheet>!<cell>": { value, label, assumption } } }`: every typed number on the two ported Rivian sheets, keyed by cell (sheet names as the spreadsheet stores them, truncated at 31 characters), with the row label and whether it was a highlighted assumption cell. The B3 port maps its inputs and the typed "What did it cost you" figures from these.
+
 ---
 
 ## 4.6 Seed file format (B1)
